@@ -1,7 +1,9 @@
-use crossterm::event::{self, Event};
-use ratatui::{Frame, text::Text};
+mod task_timer;
+
 use std::env;
 use std::fs;
+
+use task_timer::session_manager::SessionManager;
 
 fn main() {
     let contents = list_contents();
@@ -10,14 +12,8 @@ fn main() {
         return;
     }
 
-    let mut terminal = ratatui::init();
-    loop {
-        terminal.draw(draw).expect("failed to draw frame");
-        if matches!(event::read().expect("failed to read event"), Event::Key(_)) {
-            break;
-        }
-    }
-    ratatui::restore();
+    let s_manager = SessionManager::new();
+    s_manager.run();
 }
 
 fn list_contents() -> Result<String, String> {
@@ -31,9 +27,4 @@ fn list_contents() -> Result<String, String> {
         Ok(contents) => Ok(contents),
         Err(e) => Err(e.to_string()),
     }
-}
-
-fn draw(frame: &mut Frame) {
-    let text = Text::raw("Hello World!");
-    frame.render_widget(text, frame.area());
 }
