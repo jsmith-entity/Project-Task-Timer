@@ -1,30 +1,31 @@
+mod file_watcher;
 mod task_timer;
 
 use std::env;
-use std::fs;
 
 use task_timer::session_manager::SessionManager;
 
 fn main() {
-    let res = list_contents();
-    if let Ok(contents) = res {
-        let s_manager = SessionManager::new(contents);
-        s_manager.run();
-    } else if let Err(e) = res {
-        println!("{}", e);
-        return;
+    if let Some(file_name) = extract_file_name() {
+        // TODO: convert string into array contents per heading
+        let mut s_manager = SessionManager::new();
+
+        let res = s_manager.attach_file_watcher(&file_name);
+        if let Ok(_) = res {
+            s_manager.run();
+        } else if let Err(e) = res {
+            println!("{}", e);
+        }
+    } else {
+        println!("Provide the file name as the first argument");
     }
 }
 
-fn list_contents() -> Result<String, String> {
+fn extract_file_name() -> Option<String> {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
-        return Err("Provide one argument pointing to the file to read.".to_string());
+        return None;
     }
 
-    let file_path: &str = &args[1];
-    match fs::read_to_string(file_path) {
-        Ok(contents) => Ok(contents),
-        Err(e) => Err(e.to_string()),
-    }
+    return Some(args[1].clone());
 }

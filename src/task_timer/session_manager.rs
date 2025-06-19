@@ -1,16 +1,28 @@
 use crossterm::event::{self, Event};
 use ratatui::{Frame, text::Text};
 
-// TODO: hold md content
-// TODO: array of Windows
+use crate::file_watcher::file_watcher::FileWatcher;
+use crate::task_timer::window::Window;
+
+// TODO: update content if file has been read
 // TODO: Window has render? function loop through each in draw
 pub struct SessionManager {
-    content: String,
+    file_watcher: Option<FileWatcher>,
+    window: Window,
 }
 
 impl SessionManager {
-    pub fn new(raw_text: String) -> SessionManager {
-        SessionManager { content: raw_text }
+    pub fn new() -> Self {
+        Self {
+            file_watcher: None,
+            window: Window::new(),
+        }
+    }
+
+    pub fn attach_file_watcher(&mut self, file_name: &str) -> Result<(), notify::Error> {
+        let watcher = FileWatcher::new(file_name)?;
+        self.file_watcher = Some(watcher);
+        Ok(())
     }
 
     pub fn run(&self) {
@@ -31,7 +43,7 @@ impl SessionManager {
     fn init(&self) {}
 
     fn draw(&self, frame: &mut Frame) {
-        let text = Text::raw(&self.content);
+        let text = Text::raw("erm");
         frame.render_widget(text, frame.area());
     }
 }
