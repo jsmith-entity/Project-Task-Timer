@@ -1,5 +1,6 @@
 use crossterm::event::{self, Event};
 use ratatui::{Frame, text::Text};
+use std::time::Duration;
 
 use crate::file_watcher::file_watcher::FileWatcher;
 use crate::task_timer::window::Window;
@@ -9,6 +10,7 @@ use crate::task_timer::window::Window;
 pub struct SessionManager {
     file_watcher: Option<FileWatcher>,
     window: Window,
+    contents: String,
 }
 
 impl SessionManager {
@@ -16,6 +18,7 @@ impl SessionManager {
         Self {
             file_watcher: None,
             window: Window::new(),
+            contents: "".to_string(),
         }
     }
 
@@ -25,16 +28,27 @@ impl SessionManager {
         Ok(())
     }
 
-    pub fn run(&self) {
+    pub fn run(&mut self) {
+        if let None = self.file_watcher {
+            println!("File watcher has not been set.");
+            return;
+        }
+
         let mut terminal = ratatui::init();
         self.init();
         loop {
+            if let Some(buf) = self.file_watcher.as_mut().unwrap().poll_change() {
+                self.contents = buf;
+            }
+
             terminal
                 .draw(|frame| self.draw(frame))
                 .expect("failed to draw frame");
 
-            if matches!(event::read().expect("failed to read event"), Event::Key(_)) {
-                break;
+            if event::poll(Duration::from_millis(50)).unwrap() {
+                if let Event::Key(_) = event::read().unwrap() {
+                    break;
+                }
             }
         }
         ratatui::restore();
@@ -43,7 +57,7 @@ impl SessionManager {
     fn init(&self) {}
 
     fn draw(&self, frame: &mut Frame) {
-        let text = Text::raw("erm");
+        let text = Text::raw(&self.contents);
         frame.render_widget(text, frame.area());
     }
 }

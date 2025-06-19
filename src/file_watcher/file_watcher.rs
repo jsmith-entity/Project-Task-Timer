@@ -1,5 +1,6 @@
 use notify::event::ModifyKind;
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{Receiver, channel};
 
@@ -45,11 +46,11 @@ impl FileWatcher {
         return Some((file_path, parent_path));
     }
 
-    pub fn poll_change(&mut self) -> Option<()> {
+    pub fn poll_change(&mut self) -> Option<String> {
         match self.recv.try_recv() {
             Ok(Ok(event)) => {
                 if self.filter_notify_event(event) {
-                    Some(())
+                    Some(self.read_file())
                 } else {
                     None
                 }
@@ -67,5 +68,10 @@ impl FileWatcher {
         }
 
         return false;
+    }
+
+    fn read_file(&self) -> String {
+        return fs::read_to_string(self.file_path.clone())
+            .expect(format!("Failed to read file {}", &self.file_name).as_str());
     }
 }
