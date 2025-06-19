@@ -6,14 +6,14 @@ use std::fs;
 use task_timer::session_manager::SessionManager;
 
 fn main() {
-    let contents = list_contents();
-    if let Err(e) = contents {
+    let res = list_contents();
+    if let Ok(contents) = res {
+        let s_manager = SessionManager::new(contents);
+        s_manager.run();
+    } else if let Err(e) = res {
         println!("{}", e);
         return;
     }
-
-    let s_manager = SessionManager::new();
-    s_manager.run();
 }
 
 fn list_contents() -> Result<String, String> {

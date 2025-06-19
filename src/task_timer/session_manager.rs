@@ -1,20 +1,24 @@
 use crossterm::event::{self, Event};
 use ratatui::{Frame, text::Text};
 
+// TODO: hold md content
+// TODO: array of Windows
+// TODO: Window has render? function loop through each in draw
 pub struct SessionManager {
-    exit_flag: bool,
+    content: String,
 }
 
 impl SessionManager {
-    pub fn new() -> SessionManager {
-        SessionManager { exit_flag: false }
+    pub fn new(raw_text: String) -> SessionManager {
+        SessionManager { content: raw_text }
     }
 
     pub fn run(&self) {
         let mut terminal = ratatui::init();
+        self.init();
         loop {
             terminal
-                .draw(SessionManager::draw)
+                .draw(|frame| self.draw(frame))
                 .expect("failed to draw frame");
 
             if matches!(event::read().expect("failed to read event"), Event::Key(_)) {
@@ -24,8 +28,10 @@ impl SessionManager {
         ratatui::restore();
     }
 
-    fn draw(frame: &mut Frame) {
-        let text = Text::raw("Hello World!");
+    fn init(&self) {}
+
+    fn draw(&self, frame: &mut Frame) {
+        let text = Text::raw(&self.content);
         frame.render_widget(text, frame.area());
     }
 }
