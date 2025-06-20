@@ -34,18 +34,6 @@ impl FileWatcher {
         })
     }
 
-    fn path_parent_dir(path_str: &str) -> Option<(PathBuf, &Path)> {
-        let path: &Path = Path::new(path_str);
-        if !path.exists() {
-            return None;
-        }
-
-        let file_path = path.canonicalize().ok()?;
-        let parent_path: &Path = path.parent()?;
-
-        return Some((file_path, parent_path));
-    }
-
     pub fn poll_change(&mut self) -> Option<String> {
         match self.recv.try_recv() {
             Ok(Ok(event)) => {
@@ -60,7 +48,24 @@ impl FileWatcher {
         }
     }
 
+    pub fn get_title(&self) -> &str {
+        return &self.file_name;
+    }
+
+    fn path_parent_dir(path_str: &str) -> Option<(PathBuf, &Path)> {
+        let path: &Path = Path::new(path_str);
+        if !path.exists() {
+            return None;
+        }
+
+        let file_path = path.canonicalize().ok()?;
+        let parent_path: &Path = path.parent()?;
+
+        return Some((file_path, parent_path));
+    }
+
     fn filter_notify_event(&self, ev: Event) -> bool {
+        // FIX: swap order. check file first, then modification type
         if let EventKind::Modify(ModifyKind::Data(_)) = ev.kind {
             if ev.paths.iter().any(|path| path == &self.file_path) {
                 return true;
