@@ -52,6 +52,11 @@ impl FileWatcher {
         return &self.file_name;
     }
 
+    pub fn read_file(&self) -> String {
+        return fs::read_to_string(self.file_path.clone())
+            .expect(format!("Failed to read file {}", &self.file_name).as_str());
+    }
+
     fn path_parent_dir(path_str: &str) -> Option<(PathBuf, &Path)> {
         let path: &Path = Path::new(path_str);
         if !path.exists() {
@@ -73,10 +78,5 @@ impl FileWatcher {
         }
 
         return false;
-    }
-
-    fn read_file(&self) -> String {
-        return fs::read_to_string(self.file_path.clone())
-            .expect(format!("Failed to read file {}", &self.file_name).as_str());
     }
 }

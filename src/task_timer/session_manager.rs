@@ -10,7 +10,7 @@ pub struct SessionManager {
     window: Window,
 }
 
-impl<'a> SessionManager {
+impl SessionManager {
     pub fn new() -> Self {
         Self {
             file_watcher: None,
@@ -28,6 +28,10 @@ impl<'a> SessionManager {
                 .get_title()
                 .to_string(),
         );
+
+        let initial_contents = self.file_watcher.as_ref().unwrap().read_file();
+        self.update_contents(initial_contents);
+
         Ok(())
     }
 
