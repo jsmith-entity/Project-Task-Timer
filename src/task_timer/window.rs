@@ -19,6 +19,10 @@ impl Window {
         self.title = title;
     }
 
+    pub fn title(&self) -> String {
+        return self.title.clone();
+    }
+
     pub fn update_contents(&mut self, contents: String) {
         self.contents = contents.clone();
     }
@@ -26,9 +30,7 @@ impl Window {
     pub fn render(&self, frame: &mut Frame) {
         let area = frame.area();
 
-        let block = Block::default()
-            .title(self.title.clone())
-            .borders(Borders::ALL);
+        let block = Block::default().title(self.title()).borders(Borders::ALL);
         let inner_area = block.inner(area);
         let body = Paragraph::new(self.contents.clone());
 

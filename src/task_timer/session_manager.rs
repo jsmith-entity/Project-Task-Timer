@@ -3,6 +3,7 @@ use ratatui::{Frame, text::Text};
 use std::time::Duration;
 
 use crate::file_watcher::file_watcher::FileWatcher;
+use crate::task_timer::node::Node;
 use crate::task_timer::window::Window;
 
 pub struct SessionManager {
@@ -30,7 +31,9 @@ impl SessionManager {
         );
 
         let initial_contents = self.file_watcher.as_ref().unwrap().read_file();
-        self.update_contents(initial_contents);
+        let tree = Node::convert_from(&initial_contents);
+        tree.print(0);
+        //self.update_contents(self.parse_contents(&initial_contents));
 
         Ok(())
     }
