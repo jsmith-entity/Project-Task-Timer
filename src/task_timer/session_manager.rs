@@ -26,6 +26,7 @@ impl SessionManager {
         let initial_contents = self.file_watcher.as_ref().unwrap().read_file();
         let markdown_tree = Node::convert_from(&initial_contents);
         self.window.update_contents(markdown_tree.clone());
+        self.window.file_name = file_name.to_string();
 
         Ok(())
     }
