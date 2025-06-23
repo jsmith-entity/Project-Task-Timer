@@ -1,5 +1,5 @@
 use crossterm::event::{self, Event};
-use ratatui::{Frame, text::Text};
+use ratatui::Frame;
 use std::time::Duration;
 
 use crate::file_watcher::file_watcher::FileWatcher;
@@ -22,18 +22,10 @@ impl SessionManager {
     pub fn attach_file_watcher(&mut self, file_name: &str) -> Result<(), notify::Error> {
         let watcher = FileWatcher::new(file_name)?;
         self.file_watcher = Some(watcher);
-        self.window.set_title(
-            self.file_watcher
-                .as_ref()
-                .expect("should have file watcher when setting title")
-                .get_title()
-                .to_string(),
-        );
 
         let initial_contents = self.file_watcher.as_ref().unwrap().read_file();
-        let tree = Node::convert_from(&initial_contents);
-        tree.print(0);
-        //self.update_contents(self.parse_contents(&initial_contents));
+        let markdown_tree = Node::convert_from(&initial_contents);
+        self.window.update_contents(markdown_tree.clone());
 
         Ok(())
     }
@@ -48,7 +40,8 @@ impl SessionManager {
 
         loop {
             if let Some(buf) = self.file_watcher.as_mut().unwrap().poll_change() {
-                self.update_contents(buf);
+                let new_content_tree = Node::convert_from(&buf);
+                self.window.update_contents(new_content_tree.clone());
             }
 
             terminal
@@ -62,10 +55,6 @@ impl SessionManager {
             }
         }
         ratatui::restore();
-    }
-
-    fn update_contents(&mut self, contents: String) {
-        self.window.update_contents(contents.clone());
     }
 
     fn draw(&self, frame: &mut Frame) {
