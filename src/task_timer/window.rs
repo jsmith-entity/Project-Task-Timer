@@ -94,26 +94,8 @@ impl Window {
             // Format title so the element takes up all frame width
             title = format!("{:width$}", title, width = frame_area.width as usize);
 
-            let mut styled_title = Line::from(title).style(Style::default());
-            if self.selected_line == area.y {
-                styled_title = styled_title.bg(Color::Gray);
-            }
-
-            let block = Block::default().title(styled_title);
-            let mut inner_area = block.inner(area);
-
-            frame.render_widget(block, area);
-
-            for line in content {
-                let mut line_widget = Line::from(line);
-                if self.selected_line == inner_area.y {
-                    line_widget = line_widget.bg(Color::Gray);
-                }
-
-                frame.render_widget(line_widget, inner_area);
-
-                inner_area.y += 1;
-            }
+            let inner_area = self.render_node_block(frame, title, &area);
+            self.render_node_content(frame, &content, &inner_area);
 
             height += block_height - 1;
         }
@@ -123,5 +105,33 @@ impl Window {
         }
 
         return height;
+    }
+
+    fn render_node_block(&self, frame: &mut Frame, title: String, area: &Rect) -> Rect {
+        let mut styled_title = Line::from(title).style(Style::default());
+        if self.selected_line == area.y {
+            styled_title = styled_title.bg(Color::Gray);
+        }
+
+        let block = Block::default().title(styled_title);
+        let inner_area = block.inner(*area);
+
+        frame.render_widget(block, *area);
+
+        return inner_area;
+    }
+
+    fn render_node_content(&self, frame: &mut Frame, content: &Vec<String>, area: &Rect) {
+        let mut line_area = area.clone();
+        for line in content.iter() {
+            let mut line_widget = Line::from(line.clone());
+            if self.selected_line == line_area.y {
+                line_widget = line_widget.bg(Color::Gray);
+            }
+
+            frame.render_widget(line_widget, line_area);
+
+            line_area.y += 1;
+        }
     }
 }
