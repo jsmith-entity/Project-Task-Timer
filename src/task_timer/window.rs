@@ -1,6 +1,6 @@
 use ratatui::Frame;
 use ratatui::prelude::Rect;
-use ratatui::style::{Color, Stylize};
+use ratatui::style::{Color, Style, Stylize};
 use ratatui::text::Line;
 use ratatui::widgets::{Block, Borders, Paragraph};
 
@@ -50,7 +50,7 @@ impl Window {
     }
 
     fn render_node(&self, frame: &mut Frame, frame_area: &Rect, node: &Node, y_offset: &mut u16) {
-        let title = node.heading.clone().unwrap_or_else(|| "???".to_string());
+        let mut title = node.heading.clone().unwrap_or_else(|| "???".to_string());
         let content = node.content.clone();
 
         if title != "???" {
@@ -63,12 +63,25 @@ impl Window {
                 block_height,
             );
 
-            let block = Block::default().title(title);
+            // Format title so the element takes up all frame width
+            title = format!("{:width$}", title, width = frame_area.width as usize);
+
+            let mut styled_title = Line::from(title).style(Style::default());
+            if self.selected_line == area.y {
+                styled_title = styled_title.bg(Color::Gray);
+            }
+
+            let block = Block::default().title(styled_title);
             let mut inner_area = block.inner(area);
+
             frame.render_widget(block, area);
 
             for line in content {
-                let line_widget = Line::from(line);
+                let mut line_widget = Line::from(line);
+                if self.selected_line == inner_area.y {
+                    line_widget = line_widget.bg(Color::Gray);
+                }
+
                 frame.render_widget(line_widget, inner_area);
 
                 inner_area.y += 1;
