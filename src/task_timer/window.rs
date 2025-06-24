@@ -9,7 +9,6 @@ pub struct Window {
     content_tree: Node,
 }
 
-// TODO: Layout created per heading
 impl Window {
     pub fn new() -> Self {
         Self {

@@ -1,5 +1,4 @@
-use crossterm::event::{self, Event};
-use ratatui::Frame;
+use crossterm::event::{self, Event, KeyCode};
 use std::time::Duration;
 
 use crate::file_watcher::file_watcher::FileWatcher;
@@ -9,6 +8,12 @@ use crate::task_timer::window::Window;
 pub struct SessionManager {
     file_watcher: Option<FileWatcher>,
     window: Window,
+}
+
+#[derive(PartialEq)]
+enum InputResult {
+    Continue,
+    Exit,
 }
 
 impl SessionManager {
@@ -46,11 +51,13 @@ impl SessionManager {
             }
 
             terminal
-                .draw(|frame| self.draw(frame))
+                .draw(|frame| self.window.render(frame))
                 .expect("failed to draw frame");
 
             if event::poll(Duration::from_millis(50)).unwrap() {
-                if let Event::Key(_) = event::read().unwrap() {
+                let event = event::read().unwrap();
+
+                if self.handle_input(&event) == InputResult::Exit {
                     break;
                 }
             }
@@ -58,7 +65,15 @@ impl SessionManager {
         ratatui::restore();
     }
 
-    fn draw(&self, frame: &mut Frame) {
-        self.window.render(frame);
+    fn handle_input(&self, event: &Event) -> InputResult {
+        let Event::Key(key_event) = event else {
+            return InputResult::Continue;
+        };
+
+        if key_event.code == KeyCode::Esc {
+            return InputResult::Exit;
+        }
+
+        return InputResult::Continue;
     }
 }
