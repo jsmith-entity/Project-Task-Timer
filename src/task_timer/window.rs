@@ -9,6 +9,9 @@ use crate::task_timer::node::Node;
 pub struct Window {
     pub file_name: String,
     content_tree: Node,
+
+    area_bounds: Rect,
+    content_height: u16,
     selected_line: u16,
 }
 
@@ -17,7 +20,9 @@ impl Window {
         Self {
             file_name: "???".to_string(),
             content_tree: Node::new(),
-            selected_line: 0,
+            area_bounds: Rect::new(0, 0, 0, 0),
+            content_height: 0,
+            selected_line: 1,
         }
     }
 
@@ -25,7 +30,11 @@ impl Window {
         self.content_tree = contents
     }
 
-    pub fn render(&self, frame: &mut Frame) {
+    pub fn content_height(&self) -> u16 {
+        return self.content_height;
+    }
+
+    pub fn render(&mut self, frame: &mut Frame) {
         let invalid_root = self.content_tree.heading == None
             && self.content_tree.content.len() == 0
             && self.content_tree.children.len() == 0;
@@ -38,18 +47,37 @@ impl Window {
 
         let root_title = self.file_name.clone();
         let root_block = Block::default().title(root_title).borders(Borders::ALL);
+
         let inner_area = root_block.inner(area);
+        self.area_bounds = inner_area.clone();
 
         frame.render_widget(root_block, area);
 
-        self.render_node(frame, &inner_area, &self.content_tree, &mut 0);
+        let root_node = &self.content_tree;
+        let new_height = self.render_node(frame, root_node, 0);
+
+        self.content_height = new_height;
     }
 
     pub fn select_line(&mut self, line_num: u16) {
-        self.selected_line = line_num;
+        let win_max_height = self.area_bounds.y + self.area_bounds.height;
+
+        let lower_bound = self.area_bounds.y;
+        let upper_bound = if self.content_height < win_max_height {
+            self.content_height + 1
+        } else {
+            win_max_height
+        };
+
+        let within_bounds = line_num >= lower_bound && line_num < upper_bound;
+        if within_bounds {
+            self.selected_line = line_num;
+        }
     }
 
-    fn render_node(&self, frame: &mut Frame, frame_area: &Rect, node: &Node, y_offset: &mut u16) {
+    fn render_node(&self, frame: &mut Frame, node: &Node, mut height: u16) -> u16 {
+        let frame_area = self.area_bounds;
+
         let mut title = node.heading.clone().unwrap_or_else(|| "???".to_string());
         let content = node.content.clone();
 
@@ -58,7 +86,7 @@ impl Window {
             let block_height = content_lines + 2;
             let area = Rect::new(
                 frame_area.x,
-                frame_area.y + *y_offset,
+                frame_area.y + height,
                 frame_area.width,
                 block_height,
             );
@@ -87,11 +115,13 @@ impl Window {
                 inner_area.y += 1;
             }
 
-            *y_offset += block_height;
+            height += block_height - 1;
         }
 
         for child_node in node.children.iter() {
-            self.render_node(frame, frame_area, child_node, y_offset);
+            height = self.render_node(frame, child_node, height);
         }
+
+        return height;
     }
 }

@@ -22,7 +22,7 @@ impl SessionManager {
         Self {
             file_watcher: None,
             window: Window::new(),
-            current_line: 0,
+            current_line: 1,
         }
     }
 
@@ -74,12 +74,16 @@ impl SessionManager {
 
         match key_event.code {
             KeyCode::Char('j') => {
-                self.current_line += 1;
-                self.window.select_line(self.current_line);
+                if self.current_line < self.window.content_height() {
+                    self.current_line += 1;
+                    self.window.select_line(self.current_line);
+                }
             }
             KeyCode::Char('k') => {
-                self.current_line -= 1;
-                self.window.select_line(self.current_line)
+                if self.current_line > 1 {
+                    self.current_line -= 1;
+                    self.window.select_line(self.current_line)
+                }
             }
             KeyCode::Esc | KeyCode::Char('q') => return InputResult::Exit,
             _ => (),
