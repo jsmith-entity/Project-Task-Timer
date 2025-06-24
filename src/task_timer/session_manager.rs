@@ -8,6 +8,7 @@ use crate::task_timer::window::Window;
 pub struct SessionManager {
     file_watcher: Option<FileWatcher>,
     window: Window,
+    current_line: u16,
 }
 
 #[derive(PartialEq)]
@@ -21,6 +22,7 @@ impl SessionManager {
         Self {
             file_watcher: None,
             window: Window::new(),
+            current_line: 0,
         }
     }
 
@@ -65,13 +67,22 @@ impl SessionManager {
         ratatui::restore();
     }
 
-    fn handle_input(&self, event: &Event) -> InputResult {
+    fn handle_input(&mut self, event: &Event) -> InputResult {
         let Event::Key(key_event) = event else {
             return InputResult::Continue;
         };
 
-        if key_event.code == KeyCode::Esc {
-            return InputResult::Exit;
+        match key_event.code {
+            KeyCode::Char('j') => {
+                self.current_line += 1;
+                self.window.select_line(self.current_line);
+            }
+            KeyCode::Char('k') => {
+                self.current_line -= 1;
+                self.window.select_line(self.current_line)
+            }
+            KeyCode::Esc | KeyCode::Char('q') => return InputResult::Exit,
+            _ => (),
         }
 
         return InputResult::Continue;

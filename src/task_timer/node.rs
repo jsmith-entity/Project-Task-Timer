@@ -1,7 +1,7 @@
 #[derive(Clone)]
 pub struct Node {
     pub heading: Option<String>,
-    pub content: Option<String>,
+    pub content: Vec<String>,
     pub children: Vec<Node>,
 }
 
@@ -9,7 +9,7 @@ impl Node {
     pub fn new() -> Self {
         Self {
             heading: None,
-            content: None,
+            content: Vec::new(),
             children: Vec::new(),
         }
     }
@@ -17,7 +17,7 @@ impl Node {
     pub fn new_with_heading(heading: String) -> Self {
         Self {
             heading: Some(heading),
-            content: None,
+            content: Vec::new(),
             children: Vec::new(),
         }
     }
@@ -56,15 +56,7 @@ impl Node {
             let content = line.to_string();
 
             let current_node = Node::find_heading_level(root, indices);
-            match &mut current_node.content {
-                Some(existing) => {
-                    existing.push_str("\n");
-                    existing.push_str(&content);
-                }
-                None => {
-                    current_node.content = Some(content);
-                }
-            }
+            current_node.content.push(content);
         }
     }
 
@@ -83,10 +75,8 @@ impl Node {
             println!("{}{}", indent, heading);
         }
 
-        if let Some(content) = &self.content {
-            for line in content.split("\n") {
-                println!("{}{}", indent, line);
-            }
+        for line in self.content.iter() {
+            println!("{}{}", indent, line);
         }
 
         for child_node in &self.children {
