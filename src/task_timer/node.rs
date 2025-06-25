@@ -1,9 +1,11 @@
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Node {
     pub heading: Option<String>,
     pub content: Vec<String>,
     pub children: Vec<Node>,
 }
+
+pub type NodePath = Vec<usize>;
 
 impl Node {
     pub fn new() -> Self {
@@ -33,6 +35,39 @@ impl Node {
         }
 
         return root;
+    }
+
+    pub fn find_path(current: &Node, target: &Node, path: &mut NodePath) -> bool {
+        if current == target {
+            return true;
+        }
+
+        for (i, child) in current.children.iter().enumerate() {
+            path.push(i);
+            if Node::find_path(child, target, path) {
+                return true;
+            }
+
+            path.pop();
+        }
+
+        return false;
+    }
+
+    pub fn print(&self, depth: usize) {
+        let indent = "  ".repeat(depth);
+
+        if let Some(heading) = &self.heading {
+            println!("{}{}", indent, heading);
+        }
+
+        for line in self.content.iter() {
+            println!("{}{}", indent, line);
+        }
+
+        for child_node in &self.children {
+            child_node.print(depth + 1);
+        }
     }
 
     fn convert_line(line: &str, root: &mut Node, indices: &mut Vec<usize>) {
@@ -66,21 +101,5 @@ impl Node {
             node = &mut node.children[idx];
         }
         return node;
-    }
-
-    pub fn print(&self, depth: usize) {
-        let indent = "  ".repeat(depth);
-
-        if let Some(heading) = &self.heading {
-            println!("{}{}", indent, heading);
-        }
-
-        for line in self.content.iter() {
-            println!("{}{}", indent, line);
-        }
-
-        for child_node in &self.children {
-            child_node.print(depth + 1);
-        }
     }
 }

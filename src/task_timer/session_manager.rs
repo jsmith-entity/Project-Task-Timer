@@ -56,6 +56,12 @@ impl SessionManager {
                 .draw(|frame| self.window.render(frame))
                 .expect("failed to draw frame");
 
+            // True if the previous frame handled input to hide a heading
+            if self.window.to_collapse == true {
+                // Cancel this behaviour from this frame onwards
+                self.window.to_collapse = false;
+            }
+
             if event::poll(Duration::from_millis(50)).unwrap() {
                 let event = event::read().unwrap();
 
@@ -84,6 +90,9 @@ impl SessionManager {
                     self.current_line -= 1;
                     self.window.select_line(self.current_line)
                 }
+            }
+            KeyCode::Enter => {
+                self.window.to_collapse = true;
             }
             KeyCode::Esc | KeyCode::Char('q') => return InputResult::Exit,
             _ => (),

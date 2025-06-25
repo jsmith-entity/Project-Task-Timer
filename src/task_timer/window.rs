@@ -2,17 +2,21 @@ use ratatui::Frame;
 use ratatui::prelude::Rect;
 use ratatui::style::{Color, Style, Stylize};
 use ratatui::text::Line;
-use ratatui::widgets::{Block, Borders, Paragraph};
+use ratatui::widgets::{Block, Borders};
 
-use crate::task_timer::node::Node;
+use crate::task_timer::node::{Node, NodePath};
 
 pub struct Window {
     pub file_name: String,
+    pub to_collapse: bool,
+
     content_tree: Node,
 
     area_bounds: Rect,
     content_height: u16,
     selected_line: u16,
+
+    collapsed_heading_paths: Vec<NodePath>,
 }
 
 impl Window {
@@ -23,6 +27,8 @@ impl Window {
             area_bounds: Rect::new(0, 0, 0, 0),
             content_height: 0,
             selected_line: 1,
+            collapsed_heading_paths: Vec::new(),
+            to_collapse: false,
         }
     }
 
@@ -44,7 +50,6 @@ impl Window {
         }
 
         let area = frame.area();
-
         let root_title = self.file_name.clone();
         let root_block = Block::default().title(root_title).borders(Borders::ALL);
 
@@ -53,7 +58,7 @@ impl Window {
 
         frame.render_widget(root_block, area);
 
-        let root_node = &self.content_tree;
+        let root_node = &self.content_tree.clone();
         let new_height = self.render_node(frame, root_node, 0);
 
         self.content_height = new_height;
@@ -75,7 +80,7 @@ impl Window {
         }
     }
 
-    fn render_node(&self, frame: &mut Frame, node: &Node, mut height: u16) -> u16 {
+    fn render_node(&mut self, frame: &mut Frame, node: &Node, mut height: u16) -> u16 {
         let frame_area = self.area_bounds;
 
         let mut title = node.heading.clone().unwrap_or_else(|| "???".to_string());
@@ -94,10 +99,29 @@ impl Window {
             // Format title so the element takes up all frame width
             title = format!("{:width$}", title, width = frame_area.width as usize);
 
-            let inner_area = self.render_node_block(frame, title, &area);
-            self.render_node_content(frame, &content, &inner_area);
+            let (inner_area, collapse_block) = self.render_node_block(frame, title, &area);
 
-            height += block_height - 1;
+            let mut node_path: NodePath = Vec::new();
+            if Node::find_path(&self.content_tree, node, &mut node_path) {
+                let already_hidden = self.collapsed_heading_paths.contains(&node_path);
+                if collapse_block && already_hidden {
+                    // To show a hidden block
+                    self.collapsed_heading_paths
+                        .retain(|path| *path != node_path);
+                } else if collapse_block {
+                    // To hide a hidden block
+                    self.collapsed_heading_paths.push(node_path.clone());
+                }
+
+                if !self.collapsed_heading_paths.contains(&node_path) {
+                    self.render_node_content(frame, &content, &inner_area);
+                    height += block_height - 1;
+                } else {
+                    height += 1;
+                }
+            } else {
+                // TODO: write error - comparing two unrelated nodes
+            }
         }
 
         for child_node in node.children.iter() {
@@ -107,7 +131,7 @@ impl Window {
         return height;
     }
 
-    fn render_node_block(&self, frame: &mut Frame, title: String, area: &Rect) -> Rect {
+    fn render_node_block(&mut self, frame: &mut Frame, title: String, area: &Rect) -> (Rect, bool) {
         let mut styled_title = Line::from(title).style(Style::default());
         if self.selected_line == area.y {
             styled_title = styled_title.bg(Color::Gray);
@@ -115,14 +139,17 @@ impl Window {
 
         let block = Block::default().title(styled_title);
         let inner_area = block.inner(*area);
-
         frame.render_widget(block, *area);
 
-        return inner_area;
+        let is_selected = area.top() == self.selected_line;
+        let collapse_selected_block = self.to_collapse && is_selected;
+
+        return (inner_area, collapse_selected_block);
     }
 
     fn render_node_content(&self, frame: &mut Frame, content: &Vec<String>, area: &Rect) {
         let mut line_area = area.clone();
+
         for line in content.iter() {
             let mut line_widget = Line::from(line.clone());
             if self.selected_line == line_area.y {
