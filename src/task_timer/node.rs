@@ -6,7 +6,7 @@ pub struct Node {
     pub content: Vec<String>,
     pub children: Vec<Node>,
 
-    content_times: Vec<Duration>,
+    pub content_times: Vec<Duration>,
 }
 
 pub type NodePath = Vec<usize>;

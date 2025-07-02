@@ -1,5 +1,5 @@
 use ratatui::Frame;
-use ratatui::prelude::{Constraint, Direction, Layout, Rect};
+use ratatui::prelude::Rect;
 use ratatui::widgets::{Block, Borders};
 
 use crate::task_timer::markdown_view::MarkdownView;
@@ -12,7 +12,6 @@ pub struct Window {
     selected_line: u16,
     content_height: u16,
 
-    layout: Layout,
     task_list: MarkdownView,
 }
 
@@ -25,25 +24,20 @@ impl Window {
             selected_line: 1,
             content_height: 0,
 
-            layout: Layout::default(),
             task_list: MarkdownView::new(),
         }
     }
 
     pub fn update_contents(&mut self, contents: Node) {
-        self.task_list.update_contents(contents);
+        self.task_list.update(contents);
     }
 
     pub fn content_height(&self) -> u16 {
         return self.content_height;
     }
 
-    pub fn collapse_heading(&mut self, collapse: bool) {
-        self.task_list.to_collapse = collapse;
-    }
-
-    pub fn to_collapse(&self) -> bool {
-        return self.task_list.to_collapse;
+    pub fn try_collapse_heading(&mut self) {
+        self.task_list.try_collapse();
     }
 
     pub fn render(&mut self, frame: &mut Frame) {
@@ -56,7 +50,7 @@ impl Window {
         self.area_bounds = root_block.inner(area);
 
         frame.render_widget(root_block, area);
-        let new_height = self.task_list.render(frame, &self.area_bounds);
+        let new_height = self.task_list.draw(frame, &self.area_bounds);
 
         self.content_height = new_height;
     }

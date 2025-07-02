@@ -48,10 +48,6 @@ impl FileWatcher {
         }
     }
 
-    pub fn get_title(&self) -> &str {
-        return &self.file_name;
-    }
-
     pub fn read_file(&self) -> String {
         return fs::read_to_string(self.file_path.clone())
             .expect(format!("Failed to read file {}", &self.file_name).as_str());
