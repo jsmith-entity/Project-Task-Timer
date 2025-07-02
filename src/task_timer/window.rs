@@ -1,5 +1,5 @@
 use ratatui::Frame;
-use ratatui::prelude::Rect;
+use ratatui::prelude::{Constraint, Direction, Layout, Rect};
 use ratatui::widgets::{Block, Borders};
 
 use crate::task_timer::markdown_view::MarkdownView;
@@ -9,10 +9,11 @@ pub struct Window {
     pub file_name: String,
 
     area_bounds: Rect,
-    task_list: MarkdownView,
-
     selected_line: u16,
     content_height: u16,
+
+    layout: Layout,
+    task_list: MarkdownView,
 }
 
 impl Window {
@@ -21,9 +22,11 @@ impl Window {
             file_name: "???".to_string(),
 
             area_bounds: Rect::new(0, 0, 0, 0),
-            task_list: MarkdownView::new(),
             selected_line: 1,
             content_height: 0,
+
+            layout: Layout::default(),
+            task_list: MarkdownView::new(),
         }
     }
 
@@ -44,26 +47,16 @@ impl Window {
     }
 
     pub fn render(&mut self, frame: &mut Frame) {
-        let invalid_root = self.task_list.content_tree.heading == None
-            && self.task_list.content_tree.content.len() == 0
-            && self.task_list.content_tree.children.len() == 0;
-
-        if invalid_root {
-            panic!("Attempting to render a window where an invalid root node has been provided.");
-        }
-
         let area = frame.area();
+
         let root_title = self.file_name.clone();
         let root_block = Block::default().title(root_title).borders(Borders::ALL);
 
-        let inner_area = root_block.inner(area);
-        self.area_bounds = inner_area.clone();
-        self.task_list.area_bounds = self.area_bounds;
+        // TODO: Consider removing if not needed for bottom vertical view
+        self.area_bounds = root_block.inner(area);
 
         frame.render_widget(root_block, area);
-
-        let root_node = &self.task_list.content_tree.clone();
-        let new_height = self.task_list.render_node(frame, root_node, 0);
+        let new_height = self.task_list.render(frame, &self.area_bounds);
 
         self.content_height = new_height;
     }

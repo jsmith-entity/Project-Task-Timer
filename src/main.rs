@@ -7,7 +7,6 @@ use task_timer::session_manager::SessionManager;
 
 fn main() {
     if let Some(file_name) = extract_file_name() {
-        // TODO: convert string into array contents per heading
         let mut s_manager = SessionManager::new();
 
         let res = s_manager.attach_file_watcher(&file_name);

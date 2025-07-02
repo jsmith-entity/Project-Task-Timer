@@ -1,8 +1,12 @@
+use std::time::Duration;
+
 #[derive(Clone, PartialEq)]
 pub struct Node {
     pub heading: Option<String>,
     pub content: Vec<String>,
     pub children: Vec<Node>,
+
+    content_times: Vec<Duration>,
 }
 
 pub type NodePath = Vec<usize>;
@@ -13,6 +17,8 @@ impl Node {
             heading: None,
             content: Vec::new(),
             children: Vec::new(),
+
+            content_times: Vec::new(),
         }
     }
 
@@ -21,6 +27,8 @@ impl Node {
             heading: Some(heading),
             content: Vec::new(),
             children: Vec::new(),
+
+            content_times: Vec::new(),
         }
     }
 
@@ -54,22 +62,6 @@ impl Node {
         return false;
     }
 
-    pub fn print(&self, depth: usize) {
-        let indent = "  ".repeat(depth);
-
-        if let Some(heading) = &self.heading {
-            println!("{}{}", indent, heading);
-        }
-
-        for line in self.content.iter() {
-            println!("{}{}", indent, line);
-        }
-
-        for child_node in &self.children {
-            child_node.print(depth + 1);
-        }
-    }
-
     fn convert_line(line: &str, root: &mut Node, indices: &mut Vec<usize>) {
         let depth = line.chars().filter(|&c| c == '#').count();
 
@@ -92,6 +84,7 @@ impl Node {
 
             let current_node = Node::find_heading_level(root, indices);
             current_node.content.push(content);
+            current_node.content_times.push(Duration::from_secs(0));
         }
     }
 
