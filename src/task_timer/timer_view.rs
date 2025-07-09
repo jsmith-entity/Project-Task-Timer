@@ -5,12 +5,21 @@ use ratatui::text::Line;
 
 use crate::task_timer::node::{Node, NodePath};
 
+#[derive(PartialEq)]
+pub struct TimeData {
+    pub line_num: u16,
+    pub node_path: NodePath,
+    pub task_num: usize,
+    pub active: bool,
+}
+
 pub struct TimerView {
     pub selected_line: u16,
 
     area: Rect,
     root_node: Node,
     drawn_nodes: Vec<NodePath>,
+    time_data: Vec<TimeData>,
 }
 
 impl TimerView {
@@ -21,6 +30,7 @@ impl TimerView {
             area: Rect::new(0, 0, 0, 0),
             root_node: Node::new(),
             drawn_nodes: Vec::new(),
+            time_data: Vec::new(),
         };
     }
 
@@ -44,6 +54,20 @@ impl TimerView {
         return height;
     }
 
+    pub fn try_activate(&mut self) {
+        if let Some(idx) = self
+            .time_data
+            .iter()
+            .position(|e| e.line_num == self.selected_line)
+        {
+            self.time_data[idx].active = !self.time_data[idx].active;
+        }
+    }
+
+    pub fn active_times(&self) -> Vec<&TimeData> {
+        return self.time_data.iter().filter(|e| e.active).collect();
+    }
+
     fn try_draw_timers(&mut self, frame: &mut Frame, node: &Node, mut height: u16) -> u16 {
         let mut node_path = Vec::new();
         if !Node::find_path(&self.root_node, &node, &mut node_path) {
@@ -51,9 +75,9 @@ impl TimerView {
         }
 
         if self.drawn_nodes.contains(&node_path) {
-            height += self.draw_timers(frame, node, height, true);
+            height += self.draw_timers(frame, node, &node_path, height, true);
         } else {
-            height += self.draw_timers(frame, node, height, false);
+            height += self.draw_timers(frame, node, &node_path, height, false);
         }
 
         for child_node in node.children.iter() {
@@ -63,7 +87,14 @@ impl TimerView {
         return height;
     }
 
-    fn draw_timers(&mut self, frame: &mut Frame, node: &Node, height: u16, draw_content: bool) -> u16 {
+    fn draw_timers(
+        &mut self,
+        frame: &mut Frame,
+        node: &Node,
+        node_path: &NodePath,
+        height: u16,
+        draw_content: bool,
+    ) -> u16 {
         assert!(node.content.len() == node.content_times.len());
 
         let block_height = node.content.len() as u16 + 2;
@@ -76,7 +107,7 @@ impl TimerView {
 
         let mut total_seconds = 0;
         let initial_y = timer_area.y;
-        for time in node.content_times.iter() {
+        for (idx, time) in node.content_times.iter().enumerate() {
             if draw_content {
                 let text = TimerView::format_time(time.as_secs(), 1);
                 let mut line = Line::from(text);
@@ -86,6 +117,7 @@ impl TimerView {
 
                 frame.render_widget(line, timer_area);
 
+                self.update_time_data(timer_area.y, node_path.to_vec(), idx, false);
                 timer_area.y += 1;
             }
 
@@ -111,5 +143,21 @@ impl TimerView {
         let seconds = total_seconds % 60;
         let indent = format!("{:1$}", "", indent_level);
         return format!("{}[{:02}:{:02}:{:02}] ", indent, hours, minutes, seconds);
+    }
+
+    fn update_time_data(&mut self, line_num: u16, node_path: NodePath, task_num: usize, active: bool) {
+        let entry = TimeData {
+            line_num,
+            node_path,
+            task_num,
+            active,
+        };
+
+        if !self.time_data.contains(&entry) {
+            self.time_data.push(entry);
+        } else {
+            let idx = self.time_data.iter().position(|e| *e == entry).unwrap();
+            self.time_data[idx].active = active;
+        }
     }
 }

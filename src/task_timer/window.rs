@@ -1,6 +1,7 @@
 use ratatui::Frame;
 use ratatui::prelude::{Constraint, Direction, Layout, Rect};
 use ratatui::widgets::{Block, Borders};
+use std::time::Duration;
 
 use crate::task_timer::markdown_view::MarkdownView;
 use crate::task_timer::node::Node;
@@ -68,6 +69,16 @@ impl Window {
         if within_bounds {
             self.task_list.selected_line = line_num;
             self.timers.selected_line = line_num;
+        }
+    }
+
+    pub fn update_time(&mut self) {
+        let node_data = self.timers.active_times();
+
+        for entry in node_data.iter() {
+            let node = self.content_tree.get_node(&entry.node_path).unwrap();
+
+            node.content_times[entry.task_num] += Duration::from_secs(1);
         }
     }
 }

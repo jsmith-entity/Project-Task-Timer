@@ -1,5 +1,5 @@
 use crossterm::event::{self, Event, KeyCode};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::file_watcher::file_watcher::FileWatcher;
 use crate::task_timer::node::Node;
@@ -9,6 +9,7 @@ pub struct SessionManager {
     file_watcher: Option<FileWatcher>,
     window: Window,
     current_line: u16,
+    last_tick: Instant,
 }
 
 #[derive(PartialEq)]
@@ -23,6 +24,7 @@ impl SessionManager {
             file_watcher: None,
             window: Window::new(),
             current_line: 1,
+            last_tick: Instant::now(),
         }
     }
 
@@ -50,6 +52,11 @@ impl SessionManager {
             if let Some(buf) = self.file_watcher.as_mut().unwrap().poll_change() {
                 let new_content_tree = Node::convert_from(&buf);
                 self.window.content_tree = new_content_tree;
+            }
+
+            if self.last_tick.elapsed().as_secs() >= 1 {
+                self.window.update_time();
+                self.last_tick = Instant::now();
             }
 
             terminal
@@ -85,7 +92,9 @@ impl SessionManager {
                     self.window.select_line(self.current_line)
                 }
             }
-            KeyCode::Char(' ') => {}
+            KeyCode::Char(' ') => {
+                self.window.timers.try_activate();
+            }
             KeyCode::Enter => {
                 self.window.task_list.try_collapse();
             }

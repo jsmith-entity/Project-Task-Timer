@@ -62,6 +62,15 @@ impl Node {
         return false;
     }
 
+    pub fn get_node(&mut self, path: &NodePath) -> Option<&mut Node> {
+        let mut current = self;
+        for &idx in path {
+            current = current.children.get_mut(idx)?;
+        }
+
+        return Some(current);
+    }
+
     fn convert_line(line: &str, root: &mut Node, indices: &mut Vec<usize>) {
         let depth = line.chars().filter(|&c| c == '#').count();
 
