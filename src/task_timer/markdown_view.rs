@@ -1,6 +1,5 @@
 use ratatui::Frame;
 use ratatui::prelude::Rect;
-use ratatui::prelude::{Constraint, Direction, Layout};
 use ratatui::style::{Color, Style, Stylize};
 use ratatui::text::Line;
 use ratatui::widgets::Block;
@@ -17,33 +16,21 @@ pub struct MarkdownView {
     pub selected_line: u16,
 
     content_tree: Node,
-
-    layout: Layout,
-    time_area: Option<Rect>,
-    task_area: Option<Rect>,
-
+    area: Rect,
     node_data: Vec<NodeEntry>,
+    drawn_nodes: Vec<NodePath>,
 }
 
 impl MarkdownView {
     pub fn new() -> Self {
         Self {
-            content_tree: Node::new(),
             selected_line: 1,
 
-            layout: Layout::new(
-                Direction::Horizontal,
-                [Constraint::Length(13), Constraint::Min(0)],
-            ),
-            time_area: None,
-            task_area: None,
-
+            content_tree: Node::new(),
+            area: Rect::new(0, 0, 0, 0),
             node_data: Vec::new(),
+            drawn_nodes: Vec::new(),
         }
-    }
-
-    pub fn update(&mut self, new_tree: Node) {
-        self.content_tree = new_tree;
     }
 
     pub fn try_collapse(&mut self) {
@@ -60,57 +47,37 @@ impl MarkdownView {
         }
     }
 
-    pub fn draw(&mut self, frame: &mut Frame, area: &Rect) -> u16 {
-        let areas = self.layout.split(*area);
-        self.time_area = Some(areas[0]);
-        self.task_area = Some(areas[1]);
+    pub fn draw(&mut self, frame: &mut Frame, area: &Rect, content_tree: &Node) -> (u16, Vec<NodePath>) {
+        self.drawn_nodes = Vec::new();
+        self.content_tree = content_tree.clone();
+        self.area = area.clone();
 
         let mut height = 0;
 
-        let root_node = self.content_tree.clone();
-        for child_node in root_node.children.iter() {
+        let children: Vec<_> = self.content_tree.children.iter().cloned().collect();
+        for child_node in children {
             height = self.draw_node(frame, &child_node, height)
         }
 
-        return height;
+        return (height, self.drawn_nodes.clone());
     }
 
     fn draw_node(&mut self, frame: &mut Frame, node: &Node, mut height: u16) -> u16 {
-        assert!(self.task_area.is_some());
-        assert!(self.time_area.is_some());
-
-        let task_area = self.task_area.unwrap();
-        let time_area = self.time_area.unwrap();
-
         let block_height = node.content.len() as u16 + 2;
 
-        let areas = vec![
-            Rect::new(
-                time_area.x,
-                time_area.y + height + 1,
-                time_area.width,
-                block_height,
-            ),
-            Rect::new(
-                task_area.x,
-                task_area.y + height,
-                task_area.width,
-                block_height,
-            ),
-        ];
+        let node_area = Rect::new(self.area.x, self.area.y + height, self.area.width, block_height);
 
-        let inner_area = self.draw_block(frame, &node, &areas[1]);
+        let inner_area = self.draw_block(frame, &node, &node_area);
 
-        let drawn = self.try_draw_content(frame, &node, &inner_area);
+        let (drawn, node_path) = self.try_draw_content(frame, &node, &inner_area);
         if drawn {
             height += block_height - 1;
+            self.drawn_nodes.push(node_path);
         } else {
             height += 1;
         }
 
-        self.draw_timers(frame, &node, drawn, &areas[0]);
-
-        self.update_node_data(node, &areas[1]);
+        self.update_node_data(node, &node_area);
 
         for child_node in node.children.iter() {
             height = self.draw_node(frame, child_node, height);
@@ -137,7 +104,7 @@ impl MarkdownView {
         return inner_area;
     }
 
-    fn try_draw_content(&self, frame: &mut Frame, node: &Node, area: &Rect) -> bool {
+    fn try_draw_content(&self, frame: &mut Frame, node: &Node, area: &Rect) -> (bool, NodePath) {
         let mut node_path = Vec::new();
         if !Node::find_path(&self.content_tree, node, &mut node_path) {
             panic!("Comparing nodes that are not in same tree.")
@@ -153,7 +120,7 @@ impl MarkdownView {
             // TODO: error for not found
         }
 
-        return rendered;
+        return (rendered, node_path);
     }
 
     fn draw_content(&self, frame: &mut Frame, node: &Node, area: &Rect) {
@@ -199,46 +166,5 @@ impl MarkdownView {
         } else {
             return false;
         }
-    }
-
-    fn draw_timers(&self, frame: &mut Frame, node: &Node, visible: bool, area: &Rect) {
-        assert!(node.content.len() == node.content_times.len());
-
-        let mut line_area = area.clone();
-
-        let mut total_seconds = 0;
-        let initial_y = area.y;
-        for time in node.content_times.iter() {
-            if visible {
-                let text = MarkdownView::format_time(time.as_secs(), 1);
-                let mut line = Line::from(text);
-                if self.selected_line == line_area.y {
-                    line = line.bg(Color::Gray).fg(Color::Black);
-                }
-
-                frame.render_widget(line, line_area);
-
-                line_area.y += 1;
-            }
-
-            total_seconds += time.as_secs();
-        }
-
-        let text = MarkdownView::format_time(total_seconds, 0);
-        let mut line = Line::from(text);
-        if self.selected_line == initial_y - 1 {
-            line = line.bg(Color::Gray).fg(Color::Black);
-        }
-
-        let heading_area = Rect::new(area.x, initial_y - 1, area.width, area.height);
-        frame.render_widget(line, heading_area)
-    }
-
-    fn format_time(total_seconds: u64, indent_level: usize) -> String {
-        let hours = total_seconds / 3600;
-        let minutes = total_seconds / 60;
-        let seconds = total_seconds % 60;
-        let indent = format!("{:1$}", "", indent_level);
-        return format!("{}[{:02}:{:02}:{:02}] ", indent, hours, minutes, seconds);
     }
 }

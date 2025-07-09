@@ -32,7 +32,7 @@ impl SessionManager {
 
         let initial_contents = self.file_watcher.as_ref().unwrap().read_file();
         let markdown_tree = Node::convert_from(&initial_contents);
-        self.window.update_contents(markdown_tree.clone());
+        self.window.content_tree = markdown_tree;
         self.window.file_name = file_name.to_string();
 
         Ok(())
@@ -49,7 +49,7 @@ impl SessionManager {
         loop {
             if let Some(buf) = self.file_watcher.as_mut().unwrap().poll_change() {
                 let new_content_tree = Node::convert_from(&buf);
-                self.window.update_contents(new_content_tree.clone());
+                self.window.content_tree = new_content_tree;
             }
 
             terminal
@@ -74,7 +74,7 @@ impl SessionManager {
 
         match key_event.code {
             KeyCode::Char('j') => {
-                if self.current_line < self.window.content_height() {
+                if self.current_line < self.window.content_height {
                     self.current_line += 1;
                     self.window.select_line(self.current_line);
                 }
@@ -85,8 +85,9 @@ impl SessionManager {
                     self.window.select_line(self.current_line)
                 }
             }
+            KeyCode::Char(' ') => {}
             KeyCode::Enter => {
-                self.window.try_collapse_heading();
+                self.window.task_list.try_collapse();
             }
             KeyCode::Esc | KeyCode::Char('q') => return InputResult::Exit,
             _ => (),

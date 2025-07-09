@@ -2,4 +2,5 @@
 *.xcf
 test.md
 todo.md
+.rustfmt.toml
 
