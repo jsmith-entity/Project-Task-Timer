@@ -60,6 +60,10 @@ impl TimerView {
             .iter()
             .position(|e| e.line_num == self.selected_line)
         {
+            for entry in self.time_data.iter_mut() {
+                entry.active = false;
+            }
+
             self.time_data[idx].active = !self.time_data[idx].active;
         }
     }
