@@ -83,6 +83,20 @@ impl TimerView {
         return self.time_data.iter().filter(|e| e.active).collect();
     }
 
+    pub fn active_on_selected(&self) -> bool {
+        return self.time_data.iter().any(|e| e.line_num == self.selected_line);
+    }
+
+    pub fn stop_selected_time(&mut self) {
+        if let Some(pos) = self
+            .time_data
+            .iter()
+            .position(|e| e.line_num == self.selected_line)
+        {
+            self.time_data[pos].active = false;
+        }
+    }
+
     fn try_draw_timers(&mut self, frame: &mut Frame, node: &Node, mut height: u16) -> u16 {
         let mut node_path = Vec::new();
         if !Node::find_path(&self.root_node, &node, &mut node_path) {

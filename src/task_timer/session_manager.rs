@@ -88,6 +88,7 @@ impl SessionManager {
             }
             KeyCode::Char('k') => {
                 if self.current_line > 1 {
+                    // TODO: something looks wrong
                     self.current_line -= 1;
                     self.window.select_line(self.current_line)
                 }

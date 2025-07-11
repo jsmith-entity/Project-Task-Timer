@@ -86,6 +86,12 @@ impl Window {
     pub fn update_completed_task(&mut self) {
         if let Some((task_idx, found_path)) = self.task_list.selected_task() {
             let node = self.content_tree.get_node(found_path).unwrap();
+
+            // stop a timer if it exists
+            if self.timers.active_on_selected() {
+                self.timers.stop_selected_time();
+            }
+
             node.completed_tasks[task_idx] = !node.completed_tasks[task_idx];
         }
     }
