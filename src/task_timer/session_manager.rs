@@ -95,8 +95,11 @@ impl SessionManager {
             KeyCode::Char(' ') => {
                 self.window.timers.try_activate();
             }
-            KeyCode::Enter => {
+            KeyCode::Char('c') => {
                 self.window.task_list.try_collapse();
+            }
+            KeyCode::Enter => {
+                self.window.update_completed_task();
             }
             KeyCode::Esc | KeyCode::Char('q') => return InputResult::Exit,
             _ => (),

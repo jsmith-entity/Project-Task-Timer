@@ -1,6 +1,6 @@
 use ratatui::Frame;
 use ratatui::prelude::Rect;
-use ratatui::style::{Color, Style, Stylize};
+use ratatui::style::{Color, Modifier, Style, Stylize};
 use ratatui::text::Line;
 use ratatui::widgets::Block;
 
@@ -10,6 +10,13 @@ struct NodeEntry {
     pub line_num: u16,
     pub node_path: NodePath,
     pub visible: bool,
+    pub task_lines: Vec<u16>,
+}
+
+impl PartialEq for NodeEntry {
+    fn eq(&self, other: &Self) -> bool {
+        return self.node_path == other.node_path && self.task_lines == other.task_lines;
+    }
 }
 
 pub struct MarkdownView {
@@ -19,6 +26,8 @@ pub struct MarkdownView {
     area: Rect,
     node_data: Vec<NodeEntry>,
     drawn_nodes: Vec<NodePath>,
+
+    current_node_task_lines: Vec<u16>,
 }
 
 impl MarkdownView {
@@ -30,6 +39,8 @@ impl MarkdownView {
             area: Rect::new(0, 0, 0, 0),
             node_data: Vec::new(),
             drawn_nodes: Vec::new(),
+
+            current_node_task_lines: Vec::new(),
         }
     }
 
@@ -39,12 +50,25 @@ impl MarkdownView {
             .iter()
             .position(|e| e.line_num == self.selected_line)
         {
-            if self.node_data[idx].visible {
-                self.node_data[idx].visible = false;
-            } else {
-                self.node_data[idx].visible = true;
-            }
+            self.node_data[idx].visible = !self.node_data[idx].visible;
         }
+    }
+
+    pub fn selected_task(&mut self) -> Option<(usize, &NodePath)> {
+        let matches: Vec<_> = self
+            .node_data
+            .iter()
+            .filter_map(|node| {
+                node.task_lines
+                    .iter()
+                    .position(|&line| line == self.selected_line)
+                    .map(|task_idx| (task_idx, &node.node_path))
+            })
+            .collect();
+
+        assert!(matches.len() <= 1);
+
+        return matches.into_iter().next();
     }
 
     pub fn draw(&mut self, frame: &mut Frame, area: &Rect, content_tree: &Node) -> (u16, Vec<NodePath>) {
@@ -69,10 +93,9 @@ impl MarkdownView {
 
         let inner_area = self.draw_block(frame, &node, &node_area);
 
-        let (drawn, node_path) = self.try_draw_content(frame, &node, &inner_area);
+        let drawn = self.try_draw_content(frame, &node, &inner_area);
         if drawn {
             height += block_height - 1;
-            self.drawn_nodes.push(node_path);
         } else {
             height += 1;
         }
@@ -104,7 +127,7 @@ impl MarkdownView {
         return inner_area;
     }
 
-    fn try_draw_content(&self, frame: &mut Frame, node: &Node, area: &Rect) -> (bool, NodePath) {
+    fn try_draw_content(&mut self, frame: &mut Frame, node: &Node, area: &Rect) -> bool {
         let mut node_path = Vec::new();
         if !Node::find_path(&self.content_tree, node, &mut node_path) {
             panic!("Comparing nodes that are not in same tree.")
@@ -114,25 +137,36 @@ impl MarkdownView {
         if let Some(node_entry) = self.node_data.iter().find(|e| e.node_path == node_path) {
             if node_entry.visible {
                 self.draw_content(frame, node, &area);
+                self.drawn_nodes.push(node_path.clone());
                 rendered = true;
             }
         } else {
             // TODO: error for not found
         }
 
-        return (rendered, node_path);
+        return rendered;
     }
 
-    fn draw_content(&self, frame: &mut Frame, node: &Node, area: &Rect) {
+    fn draw_content(&mut self, frame: &mut Frame, node: &Node, area: &Rect) {
+        self.current_node_task_lines = Vec::new();
         let mut line_area = area.clone();
 
-        for line in node.content.iter() {
+        for (idx, line) in node.content.iter().enumerate() {
             let mut line_widget = Line::from(line.clone());
+
             if self.selected_line == line_area.y {
                 line_widget = line_widget.bg(Color::Gray).fg(Color::Black);
             }
 
+            if node.completed_tasks[idx] == true {
+                line_widget = line_widget
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::CROSSED_OUT);
+            }
+
             frame.render_widget(line_widget, line_area);
+
+            self.current_node_task_lines.push(line_area.y);
 
             line_area.y += 1;
         }
@@ -144,7 +178,14 @@ impl MarkdownView {
             panic!("Comparing nodes that are not in same tree.")
         }
 
-        if self.add_new_node(path.clone(), area.top()) {
+        let data_entry = NodeEntry {
+            line_num: area.top(),
+            node_path: path.clone(),
+            visible: true,
+            task_lines: self.current_node_task_lines.clone(),
+        };
+
+        if self.add_new_node(data_entry) {
             return;
         }
 
@@ -153,15 +194,9 @@ impl MarkdownView {
         }
     }
 
-    fn add_new_node(&mut self, path: NodePath, line: u16) -> bool {
-        if !self.node_data.iter().any(|e| *e.node_path == *path) {
-            let new_entry = NodeEntry {
-                line_num: line,
-                node_path: path,
-                visible: true,
-            };
-
-            self.node_data.push(new_entry);
+    fn add_new_node(&mut self, entry: NodeEntry) -> bool {
+        if !self.node_data.contains(&entry) {
+            self.node_data.push(entry);
             return true;
         } else {
             return false;

@@ -1,12 +1,13 @@
 use std::time::Duration;
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct Node {
     pub heading: Option<String>,
     pub content: Vec<String>,
     pub children: Vec<Node>,
 
     pub content_times: Vec<Duration>,
+    pub completed_tasks: Vec<bool>,
 }
 
 pub type NodePath = Vec<usize>;
@@ -19,6 +20,7 @@ impl Node {
             children: Vec::new(),
 
             content_times: Vec::new(),
+            completed_tasks: Vec::new(),
         }
     }
 
@@ -29,6 +31,7 @@ impl Node {
             children: Vec::new(),
 
             content_times: Vec::new(),
+            completed_tasks: Vec::new(),
         }
     }
 
@@ -94,6 +97,7 @@ impl Node {
             let current_node = Node::find_heading_level(root, indices);
             current_node.content.push(content);
             current_node.content_times.push(Duration::from_secs(0));
+            current_node.completed_tasks.push(false);
         }
     }
 
