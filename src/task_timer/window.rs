@@ -47,8 +47,9 @@ impl Window {
         let areas = self.layout.split(self.area_bounds);
 
         frame.render_widget(root_block, area);
-        let (task_height, drawn_nodes) = self.task_list.draw(frame, &areas[1], content);
-        let time_height = self.timers.draw(frame, &areas[0], &content, &drawn_nodes);
+        let (task_height, drawn_data) = self.task_list.draw(frame, &areas[1], content);
+
+        let time_height = self.timers.draw(frame, &areas[0], &content, &drawn_data);
 
         assert!(task_height == time_height);
 

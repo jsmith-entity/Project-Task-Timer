@@ -26,6 +26,7 @@ pub struct MarkdownView {
     area: Rect,
     node_data: Vec<NodeEntry>,
     drawn_nodes: Vec<NodePath>,
+    completed_lines: Vec<u16>,
 
     current_node_task_lines: Vec<u16>,
 }
@@ -39,6 +40,7 @@ impl MarkdownView {
             area: Rect::new(0, 0, 0, 0),
             node_data: Vec::new(),
             drawn_nodes: Vec::new(),
+            completed_lines: Vec::new(),
 
             current_node_task_lines: Vec::new(),
         }
@@ -71,8 +73,14 @@ impl MarkdownView {
         return matches.into_iter().next();
     }
 
-    pub fn draw(&mut self, frame: &mut Frame, area: &Rect, content_tree: &Node) -> (u16, Vec<NodePath>) {
+    pub fn draw(
+        &mut self,
+        frame: &mut Frame,
+        area: &Rect,
+        content_tree: &Node,
+    ) -> (u16, (Vec<NodePath>, Vec<u16>)) {
         self.drawn_nodes = Vec::new();
+        self.completed_lines = Vec::new();
         self.content_tree = content_tree.clone();
         self.area = area.clone();
 
@@ -83,7 +91,7 @@ impl MarkdownView {
             height = self.draw_node(frame, &child_node, height)
         }
 
-        return (height, self.drawn_nodes.clone());
+        return (height, (self.drawn_nodes.clone(), self.completed_lines.clone()));
     }
 
     fn draw_node(&mut self, frame: &mut Frame, node: &Node, mut height: u16) -> u16 {
@@ -162,6 +170,7 @@ impl MarkdownView {
                 line_widget = line_widget
                     .fg(Color::DarkGray)
                     .add_modifier(Modifier::CROSSED_OUT);
+                self.completed_lines.push(line_area.y);
             }
 
             frame.render_widget(line_widget, line_area);

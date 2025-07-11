@@ -1,6 +1,6 @@
 use ratatui::Frame;
 use ratatui::prelude::Rect;
-use ratatui::style::{Color, Stylize};
+use ratatui::style::{Color, Modifier, Stylize};
 use ratatui::text::Line;
 
 use crate::task_timer::node::{Node, NodePath};
@@ -19,6 +19,8 @@ pub struct TimerView {
     area: Rect,
     root_node: Node,
     drawn_nodes: Vec<NodePath>,
+    completed_tasks: Vec<u16>,
+
     time_data: Vec<TimeData>,
 }
 
@@ -30,6 +32,8 @@ impl TimerView {
             area: Rect::new(0, 0, 0, 0),
             root_node: Node::new(),
             drawn_nodes: Vec::new(),
+            completed_tasks: Vec::new(),
+
             time_data: Vec::new(),
         };
     }
@@ -39,11 +43,12 @@ impl TimerView {
         frame: &mut Frame,
         area: &Rect,
         root_node: &Node,
-        drawn_nodes: &Vec<NodePath>,
+        drawn_data: &(Vec<NodePath>, Vec<u16>),
     ) -> u16 {
         self.area = area.clone();
         self.root_node = root_node.clone();
-        self.drawn_nodes = drawn_nodes.clone();
+        self.drawn_nodes = drawn_data.0.clone();
+        self.completed_tasks = drawn_data.1.clone();
 
         let mut height = 0;
 
@@ -115,11 +120,7 @@ impl TimerView {
         let initial_y = timer_area.y;
         for (idx, time) in node.content_times.iter().enumerate() {
             if draw_content {
-                let text = TimerView::format_time(time.as_secs(), 1);
-                let mut line = Line::from(text);
-                if self.selected_line == timer_area.y {
-                    line = line.bg(Color::Gray).fg(Color::Black);
-                }
+                let line = self.create_line(time.as_secs(), timer_area.y, 1);
 
                 frame.render_widget(line, timer_area);
 
@@ -130,14 +131,9 @@ impl TimerView {
             total_seconds += time.as_secs();
         }
 
-        let text = TimerView::format_time(total_seconds, 0);
-        let mut line = Line::from(text);
-        if self.selected_line == initial_y - 1 {
-            line = line.bg(Color::Gray).fg(Color::Black);
-        }
-
+        let heading_line = self.create_line(total_seconds, initial_y - 1, 0);
         let heading_area = Rect::new(self.area.x, initial_y - 1, self.area.width, self.area.height);
-        frame.render_widget(line, heading_area);
+        frame.render_widget(heading_line, heading_area);
 
         let node_height = timer_area.y - initial_y + 1;
         return node_height;
@@ -165,5 +161,19 @@ impl TimerView {
             let idx = self.time_data.iter().position(|e| *e == entry).unwrap();
             self.time_data[idx].active = active;
         }
+    }
+
+    fn create_line(&self, seconds: u64, pos_y: u16, indent: usize) -> Line {
+        let text = TimerView::format_time(seconds, indent);
+        let mut line = Line::from(text);
+        if self.selected_line == pos_y {
+            line = line.bg(Color::Gray).fg(Color::Black);
+        }
+
+        if self.completed_tasks.contains(&pos_y) {
+            line = line.fg(Color::DarkGray).add_modifier(Modifier::CROSSED_OUT);
+        }
+
+        return line;
     }
 }
