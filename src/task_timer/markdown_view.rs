@@ -13,12 +13,6 @@ struct NodeEntry {
     pub task_lines: Vec<u16>,
 }
 
-impl PartialEq for NodeEntry {
-    fn eq(&self, other: &Self) -> bool {
-        return self.node_path == other.node_path && self.task_lines == other.task_lines;
-    }
-}
-
 pub struct MarkdownView {
     pub selected_line: u16,
 
@@ -108,7 +102,7 @@ impl MarkdownView {
             height += 1;
         }
 
-        self.update_node_data(node, &node_area);
+        self.update_node_data(node, &node_area, drawn);
 
         for child_node in node.children.iter() {
             height = self.draw_node(frame, child_node, height);
@@ -143,20 +137,24 @@ impl MarkdownView {
 
         let mut rendered = false;
         if let Some(node_entry) = self.node_data.iter().find(|e| e.node_path == node_path) {
+            self.current_node_task_lines = Vec::new();
+
             if node_entry.visible {
                 self.draw_content(frame, node, &area);
                 self.drawn_nodes.push(node_path.clone());
                 rendered = true;
+            } else {
+                for _ in 0..node.children.len() {
+                    // Placeholder indicating that the task line has not been rendered
+                    self.current_node_task_lines.push(u16::MAX);
+                }
             }
-        } else {
-            // TODO: error for not found
         }
 
         return rendered;
     }
 
     fn draw_content(&mut self, frame: &mut Frame, node: &Node, area: &Rect) {
-        self.current_node_task_lines = Vec::new();
         let mut line_area = area.clone();
 
         for (idx, line) in node.content.iter().enumerate() {
@@ -181,34 +179,41 @@ impl MarkdownView {
         }
     }
 
-    fn update_node_data(&mut self, node: &Node, area: &Rect) {
+    fn update_node_data(&mut self, node: &Node, area: &Rect, drawn: bool) {
         let mut path = Vec::new();
         if !Node::find_path(&self.content_tree, node, &mut path) {
             panic!("Comparing nodes that are not in same tree.")
         }
 
+        // ISSUE: task lines not updated for hidden ones
         let data_entry = NodeEntry {
             line_num: area.top(),
             node_path: path.clone(),
-            visible: true,
+            visible: drawn,
             task_lines: self.current_node_task_lines.clone(),
         };
 
-        if self.add_new_node(data_entry) {
-            return;
-        }
+        // find the node path of the entry
+        //   update visibility
+        //   update task lines
+        //   update area
+        //
+        if let Some(idx) = self
+            .node_data
+            .iter()
+            .position(|e| e.node_path == data_entry.node_path)
+        {
+            if self.node_data[idx].visible != data_entry.visible {
+                self.node_data[idx].visible = data_entry.visible;
+            }
 
-        if let Some(idx) = self.node_data.iter().position(|e| *e.node_path == path) {
+            if self.node_data[idx].task_lines != data_entry.task_lines {
+                self.node_data[idx].task_lines = data_entry.task_lines;
+            }
+
             self.node_data[idx].line_num = area.top();
-        }
-    }
-
-    fn add_new_node(&mut self, entry: NodeEntry) -> bool {
-        if !self.node_data.contains(&entry) {
-            self.node_data.push(entry);
-            return true;
         } else {
-            return false;
+            self.node_data.push(data_entry);
         }
     }
 }
