@@ -92,14 +92,14 @@ impl SessionManager {
                     self.window.select_line(self.current_line)
                 }
             }
-            KeyCode::Char(' ') => {
+            KeyCode::Char('s') => {
                 self.window.timers.try_activate();
             }
-            KeyCode::Char('c') => {
-                self.window.task_list.try_collapse();
+            KeyCode::Char(' ') => {
+                self.window.update_completed_task();
             }
             KeyCode::Enter => {
-                self.window.update_completed_task();
+                self.window.task_list.try_collapse();
             }
             KeyCode::Esc | KeyCode::Char('q') => return InputResult::Exit,
             _ => (),

@@ -65,6 +65,10 @@ impl TimerView {
             .iter()
             .position(|e| e.line_num == self.selected_line)
         {
+            if self.completed_tasks.contains(&self.selected_line) {
+                return;
+            }
+
             for (i, entry) in self.time_data.iter_mut().enumerate() {
                 if i != idx {
                     entry.active = false;
