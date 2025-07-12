@@ -67,6 +67,12 @@ impl MarkdownView {
         return matches.into_iter().next();
     }
 
+    pub fn toggle_nodes(&mut self, visible: bool) {
+        for entry in self.node_data.iter_mut() {
+            entry.visible = visible;
+        }
+    }
+
     pub fn draw(
         &mut self,
         frame: &mut Frame,

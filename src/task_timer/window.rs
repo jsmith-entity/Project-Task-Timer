@@ -96,6 +96,10 @@ impl Window {
         }
     }
 
+    pub fn toggle_headings(&mut self, visible: bool) {
+        self.task_list.toggle_nodes(visible);
+    }
+
     fn define_layouts() -> (Layout, Layout) {
         let vertical = Layout::new(
             Direction::Vertical,

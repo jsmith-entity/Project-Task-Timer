@@ -4,7 +4,6 @@ use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 
 pub struct ControlView {
-    // erm
     controls: Vec<(String, String)>,
 }
 
@@ -16,9 +15,17 @@ impl ControlView {
     }
 
     pub fn draw(&self, frame: &mut Frame, area: &Rect) {
-        let mut line_area = area.clone();
+        let line_length: u16 = 20;
 
-        for (title, desc) in self.controls.iter() {
+        for (i, (title, desc)) in self.controls.iter().enumerate() {
+            let x = area.x + (i as u16) * line_length;
+            let line_area = Rect {
+                x,
+                y: area.y,
+                width: line_length,
+                height: area.height,
+            };
+
             let mut shortcut: String = title.clone();
             shortcut.push(' ');
 
@@ -29,8 +36,6 @@ impl ControlView {
             ]);
 
             frame.render_widget(line, line_area);
-            //e rm
-            line_area.y += 1;
         }
     }
 
@@ -39,6 +44,8 @@ impl ControlView {
             ("↵".to_string(), "Toggle Heading".to_string()),
             ("␣".to_string(), "Complete Task".to_string()),
             ("s".to_string(), "Toggle Time".to_string()),
+            ("o".to_string(), "Open Headings".to_string()),
+            ("c".to_string(), "Close Headings".to_string()),
         ];
     }
 }

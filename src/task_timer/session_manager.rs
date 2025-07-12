@@ -99,6 +99,12 @@ impl SessionManager {
             KeyCode::Char(' ') => {
                 self.window.update_completed_task();
             }
+            KeyCode::Char('o') => {
+                self.window.toggle_headings(true);
+            }
+            KeyCode::Char('c') => {
+                self.window.toggle_headings(false);
+            }
             KeyCode::Enter => {
                 self.window.task_list.try_collapse();
             }
