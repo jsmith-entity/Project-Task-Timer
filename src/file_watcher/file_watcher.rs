@@ -14,17 +14,12 @@ pub struct FileWatcher {
 impl FileWatcher {
     pub fn new(path: &str) -> notify::Result<Self> {
         let (file_path, watch_path) = FileWatcher::path_parent_dir(path).ok_or_else(|| {
-            notify::Error::generic(
-                format!("Could not find parent directory for file '{}'", path).as_str(),
-            )
+            notify::Error::generic(format!("Could not find parent directory for file '{}'", path).as_str())
         })?;
 
         let (send, recv) = channel();
         let mut watcher = RecommendedWatcher::new(send, notify::Config::default())?;
-        watcher.watch(
-            std::path::Path::new(watch_path),
-            RecursiveMode::NonRecursive,
-        )?;
+        watcher.watch(std::path::Path::new(watch_path), RecursiveMode::NonRecursive)?;
 
         Ok(Self {
             file_name: path.to_string(),

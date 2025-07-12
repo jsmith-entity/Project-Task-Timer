@@ -2,14 +2,18 @@ use crossterm::event::{self, Event, KeyCode};
 use std::time::{Duration, Instant};
 
 use crate::file_watcher::file_watcher::FileWatcher;
+use crate::task_timer::logger::Logger;
 use crate::task_timer::node::Node;
 use crate::task_timer::window::Window;
 
 pub struct SessionManager {
     file_watcher: Option<FileWatcher>,
     window: Window,
+    logger: Logger,
+
     current_line: u16,
-    last_tick: Instant,
+    last_update_tick: Instant,
+    last_save_tick: Instant,
 }
 
 #[derive(PartialEq)]
@@ -23,8 +27,11 @@ impl SessionManager {
         Self {
             file_watcher: None,
             window: Window::new(),
+            logger: Logger::new(),
+
             current_line: 1,
-            last_tick: Instant::now(),
+            last_update_tick: Instant::now(),
+            last_save_tick: Instant::now(),
         }
     }
 
@@ -54,9 +61,15 @@ impl SessionManager {
                 self.window.content_tree = new_content_tree;
             }
 
-            if self.last_tick.elapsed().as_secs() >= 1 {
+            if self.last_update_tick.elapsed().as_secs() >= 1 {
                 self.window.update_time();
-                self.last_tick = Instant::now();
+                self.last_update_tick = Instant::now();
+            }
+
+            if self.last_save_tick.elapsed().as_secs() >= 1 {
+                self.logger.log("Saved");
+                self.window.update_log(self.logger.recent());
+                self.last_save_tick = Instant::now();
             }
 
             terminal

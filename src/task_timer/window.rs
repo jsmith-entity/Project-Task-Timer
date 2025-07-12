@@ -1,12 +1,13 @@
 use ratatui::Frame;
 use ratatui::prelude::{Constraint, Direction, Layout, Rect};
 use ratatui::widgets::{Block, Borders};
-use std::rc::Rc;
 use std::time::Duration;
 
 use crate::task_timer::control_view::ControlView;
+use crate::task_timer::logger_view::LoggerView;
 use crate::task_timer::markdown_view::MarkdownView;
 use crate::task_timer::node::Node;
+use crate::task_timer::time_stamp::LogRecord;
 use crate::task_timer::timer_view::TimerView;
 
 pub struct Window {
@@ -17,6 +18,7 @@ pub struct Window {
     pub task_list: MarkdownView,
     pub timers: TimerView,
     pub controls: ControlView,
+    pub log: LoggerView,
 
     markdown_area_bounds: Rect,
 }
@@ -30,6 +32,7 @@ impl Window {
             task_list: MarkdownView::new(),
             timers: TimerView::new(),
             controls: ControlView::new(),
+            log: LoggerView::new(),
 
             markdown_area_bounds: Rect::new(0, 0, 0, 0),
         }
@@ -103,6 +106,10 @@ impl Window {
         self.timers.selected_line = 1;
     }
 
+    pub fn update_log(&mut self, recent_log: Vec<LogRecord>) {
+        self.log.recent_log = recent_log;
+    }
+
     fn draw_task_window(&mut self, frame: &mut Frame, root_area: Rect) {
         let local_title = self.file_name.clone();
         let local_block = Block::default().title(local_title).borders(Borders::ALL);
@@ -137,12 +144,11 @@ impl Window {
     }
 
     fn draw_log_window(&mut self, frame: &mut Frame, area: Rect) {
-        //
         let local_block = Block::default().title("Log".to_string()).borders(Borders::ALL);
         frame.render_widget(&local_block, area);
 
         let inner_area = local_block.inner(area);
 
-        //self.logger.draw(frame, &inner_area);
+        self.log.draw(frame, &inner_area);
     }
 }
