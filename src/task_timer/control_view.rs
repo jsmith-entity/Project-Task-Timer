@@ -15,15 +15,24 @@ impl ControlView {
     }
 
     pub fn draw(&self, frame: &mut Frame, area: &Rect) {
+        assert!(self.controls.len() > 0);
+
+        let mut temp_area = area.clone();
         let line_length: u16 = 20;
 
-        for (i, (title, desc)) in self.controls.iter().enumerate() {
-            let x = area.x + (i as u16) * line_length;
+        let mut x: u16 = area.x;
+
+        for (title, desc) in self.controls.iter() {
+            if x + line_length > area.x + area.width {
+                x = area.x;
+                temp_area.y += 1;
+            }
+
             let line_area = Rect {
                 x,
-                y: area.y,
+                y: temp_area.y,
                 width: line_length,
-                height: area.height,
+                height: temp_area.height,
             };
 
             let mut shortcut: String = title.clone();
@@ -36,6 +45,8 @@ impl ControlView {
             ]);
 
             frame.render_widget(line, line_area);
+
+            x += line_length;
         }
     }
 

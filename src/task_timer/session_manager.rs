@@ -101,9 +101,11 @@ impl SessionManager {
             }
             KeyCode::Char('o') => {
                 self.window.toggle_headings(true);
+                self.current_line = 1;
             }
             KeyCode::Char('c') => {
                 self.window.toggle_headings(false);
+                self.current_line = 1;
             }
             KeyCode::Enter => {
                 self.window.task_list.try_collapse();

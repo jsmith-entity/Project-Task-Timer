@@ -36,22 +36,23 @@ impl Window {
     }
 
     pub fn render(&mut self, frame: &mut Frame) {
-        let (vertical, horizontal) = Window::define_layouts();
-
         let area = frame.area();
+        let root_layout = Layout::new(
+            Direction::Vertical,
+            [Constraint::Percentage(70), Constraint::Percentage(30)],
+        )
+        .split(area);
 
-        let root_title = self.file_name.clone();
-        let root_block = Block::default().title(root_title).borders(Borders::ALL);
+        self.draw_task_window(frame, root_layout[0]);
 
-        let vertical_panes = vertical.split(area);
-        let task_inner_area = root_block.inner(vertical_panes[0]);
-        let horizontal_panes = horizontal.split(task_inner_area);
+        let bottom_layout = Layout::new(
+            Direction::Horizontal,
+            [Constraint::Percentage(60), Constraint::Percentage(40)],
+        )
+        .split(root_layout[1]);
 
-        frame.render_widget(root_block, vertical_panes[0]);
-
-        self.markdown_area_bounds = task_inner_area;
-        self.draw_task_window(frame, horizontal_panes);
-        self.draw_control_window(frame, vertical_panes[1]);
+        self.draw_control_window(frame, bottom_layout[0]);
+        self.draw_log_window(frame, bottom_layout[1]);
     }
 
     pub fn select_line(&mut self, line_num: u16) {
@@ -98,42 +99,50 @@ impl Window {
 
     pub fn toggle_headings(&mut self, visible: bool) {
         self.task_list.toggle_nodes(visible);
+        self.task_list.selected_line = 1;
+        self.timers.selected_line = 1;
     }
 
-    fn define_layouts() -> (Layout, Layout) {
-        let vertical = Layout::new(
-            Direction::Vertical,
-            [Constraint::Percentage(70), Constraint::Percentage(30)],
-        );
+    fn draw_task_window(&mut self, frame: &mut Frame, root_area: Rect) {
+        let local_title = self.file_name.clone();
+        let local_block = Block::default().title(local_title).borders(Borders::ALL);
+        frame.render_widget(&local_block, root_area);
 
-        let horizontal = Layout::new(
+        let inner_area = local_block.inner(root_area);
+        self.markdown_area_bounds = inner_area;
+
+        let areas = Layout::new(
             Direction::Horizontal,
             [Constraint::Length(13), Constraint::Min(0)],
-        );
+        )
+        .split(inner_area);
 
-        return (vertical, horizontal);
-    }
-
-    fn draw_task_window(&mut self, frame: &mut Frame, areas: Rc<[Rect]>) {
         let content = &self.content_tree;
-
         let (task_height, drawn_data) = self.task_list.draw(frame, &areas[1], content);
-
         let time_height = self.timers.draw(frame, &areas[0], &content, &drawn_data);
-
         assert!(task_height == time_height);
 
         self.content_height = task_height;
     }
 
     fn draw_control_window(&mut self, frame: &mut Frame, area: Rect) {
-        let root_block = Block::default()
+        let local_block = Block::default()
             .title("Controls".to_string())
             .borders(Borders::ALL);
+        frame.render_widget(&local_block, area);
 
-        frame.render_widget(&root_block, area);
+        let inner_area = local_block.inner(area);
 
-        let inner_area = root_block.inner(area);
         self.controls.draw(frame, &inner_area);
+    }
+
+    fn draw_log_window(&mut self, frame: &mut Frame, area: Rect) {
+        //
+        let local_block = Block::default().title("Log".to_string()).borders(Borders::ALL);
+        frame.render_widget(&local_block, area);
+
+        let inner_area = local_block.inner(area);
+
+        //self.logger.draw(frame, &inner_area);
     }
 }
