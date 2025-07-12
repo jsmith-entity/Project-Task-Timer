@@ -185,7 +185,6 @@ impl MarkdownView {
             panic!("Comparing nodes that are not in same tree.")
         }
 
-        // ISSUE: task lines not updated for hidden ones
         let data_entry = NodeEntry {
             line_num: area.top(),
             node_path: path.clone(),
@@ -193,11 +192,6 @@ impl MarkdownView {
             task_lines: self.current_node_task_lines.clone(),
         };
 
-        // find the node path of the entry
-        //   update visibility
-        //   update task lines
-        //   update area
-        //
         if let Some(idx) = self
             .node_data
             .iter()
