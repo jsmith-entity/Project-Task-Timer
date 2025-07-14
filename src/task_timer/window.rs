@@ -5,8 +5,7 @@ use std::time::Duration;
 
 use crate::task_timer::node::Node;
 use crate::task_timer::time_stamp::LogRecord;
-use crate::task_timer::timer_view::TimerView;
-use crate::task_timer::views::{controls::*, logger::*, tasks::*};
+use crate::task_timer::views::{controls::*, logger::*, tasks::*, timers::*};
 
 pub struct Window {
     pub file_name: String,
