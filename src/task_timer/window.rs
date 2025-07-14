@@ -17,10 +17,8 @@ pub struct Window {
 
     pub timers: TimerView,
     pub task_list: TaskView,
-
     #[serde(skip)]
     logger: Logger,
-    #[serde(skip)]
     pub controls: ControlView,
     #[serde(skip)]
     pub log: LoggerView,

@@ -33,6 +33,46 @@ impl SessionManager {
         }
     }
 
+    pub fn load(&mut self) {
+        assert!(self.file_watcher.is_some());
+
+        let home_dir = std::env::home_dir().unwrap().to_string_lossy().to_string();
+
+        let saves = format!("{}/.project-saves", home_dir);
+        if !fs::exists(&saves).unwrap() {
+            if let Err(_) = fs::create_dir(&saves) {
+                self.window.log("Save failed. Could not create saves directory");
+                return;
+            }
+        }
+
+        let path = self.file_watcher.as_ref().unwrap();
+        let dir_name = path
+            .file_path
+            .parent()
+            .and_then(|p| p.file_name())
+            .and_then(|str| str.to_str())
+            .unwrap();
+
+        let save_dir = format!("{}/{}", saves, dir_name);
+        if !fs::exists(&save_dir).unwrap() {
+            if let Err(_) = fs::create_dir(&save_dir) {
+                self.window.log("Save failed. Could not create save directory");
+                return;
+            }
+        }
+
+        let save_file = format!("{save_dir}/save.json");
+
+        if let Ok(save_contents) = fs::read_to_string(save_file) {
+            let deserialised: Window = serde_json::from_str(&save_contents).unwrap();
+            self.window = deserialised;
+            self.window.log("Retrieved save file.");
+        } else {
+            self.window.log("Could not retrieve save file");
+        }
+    }
+
     pub fn attach_file_watcher(&mut self, file_name: &str) -> Result<(), notify::Error> {
         let watcher = FileWatcher::new(file_name)?;
         self.file_watcher = Some(watcher);
@@ -144,19 +184,25 @@ impl SessionManager {
             }
         }
 
-        if let Some(dir_name) = self.file_watcher.as_ref().unwrap().file_path.file_name() {
-            let save_dir_name: String = dir_name.to_string_lossy().to_string();
+        let path = self.file_watcher.as_ref().unwrap();
+        let dir_name = path
+            .file_path
+            .parent()
+            .and_then(|p| p.file_name())
+            .and_then(|str| str.to_str())
+            .unwrap();
 
-            let save_dir = format!("{}/{}", saves, save_dir_name);
-            if !fs::exists(&save_dir).unwrap() {
-                if let Err(_) = fs::create_dir(&save_dir) {
-                    return Err("Save failed. Could not create save directory");
-                }
-                // rewriting save
-            } else {
-                // new save
+        let save_dir = format!("{}/{}", saves, dir_name);
+        if !fs::exists(&save_dir).unwrap() {
+            if let Err(_) = fs::create_dir(&save_dir) {
+                return Err("Save failed. Could not create save directory");
             }
         }
+
+        let save_file = format!("{save_dir}/save.json");
+
+        let serialised = serde_json::to_string_pretty(&self.window).unwrap();
+        fs::write(save_file, serialised).expect("erm");
 
         return Ok(());
     }
