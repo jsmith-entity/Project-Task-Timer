@@ -158,7 +158,7 @@ impl TaskView {
             } else {
                 for _ in 0..node.children.len() {
                     // Placeholder indicating that the task line has not been rendered
-                    self.current_node_task_lines.push(u16::MAX);
+                    //self.current_node_task_lines.push(0);
                 }
             }
         }

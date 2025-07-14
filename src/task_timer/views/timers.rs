@@ -8,7 +8,7 @@ use crate::task_timer::node::{Node, NodePath};
 
 #[derive(PartialEq, Serialize, Deserialize)]
 pub struct TimeData {
-    pub line_num: u16,
+    pub line_num: u16, // uid
     pub node_path: NodePath,
     pub task_num: usize,
     pub active: bool,
@@ -80,6 +80,8 @@ impl TimerView {
             }
 
             self.time_data[idx].active = !self.time_data[idx].active;
+        } else {
+            println!("not found {}", self.selected_line);
         }
     }
 
@@ -146,8 +148,10 @@ impl TimerView {
 
                 frame.render_widget(line, timer_area);
 
-                self.update_time_data(timer_area.y, node_path.to_vec(), idx, false);
+                self.update_time_data(timer_area.y, node_path.to_vec(), idx);
                 timer_area.y += 1;
+            } else {
+                self.update_time_data(0, node_path.to_vec(), idx);
             }
 
             total_seconds += time.as_secs();
@@ -169,19 +173,26 @@ impl TimerView {
         return format!("{}[{:02}:{:02}:{:02}] ", indent, hours, minutes, seconds);
     }
 
-    fn update_time_data(&mut self, line_num: u16, node_path: NodePath, task_num: usize, active: bool) {
+    fn update_time_data(&mut self, line_num: u16, node_path: NodePath, task_num: usize) {
         let entry = TimeData {
             line_num,
             node_path,
             task_num,
-            active,
+            active: false,
         };
 
-        if !self.time_data.contains(&entry) {
-            self.time_data.push(entry);
+        // there are many node paths to one time data, uid is line num
+
+        if let Some(idx) = self.time_data.iter().position(|e| e.line_num == entry.line_num) {
+            if self.time_data[idx].node_path != entry.node_path {
+                self.time_data[idx].node_path = entry.node_path;
+            }
+
+            if self.time_data[idx].task_num != entry.task_num {
+                self.time_data[idx].task_num = entry.task_num;
+            }
         } else {
-            let idx = self.time_data.iter().position(|e| *e == entry).unwrap();
-            self.time_data[idx].active = active;
+            self.time_data.push(entry);
         }
     }
 
