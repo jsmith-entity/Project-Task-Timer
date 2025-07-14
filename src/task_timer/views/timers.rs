@@ -2,10 +2,11 @@ use ratatui::Frame;
 use ratatui::prelude::Rect;
 use ratatui::style::{Color, Modifier, Stylize};
 use ratatui::text::Line;
+use serde::{Deserialize, Serialize};
 
 use crate::task_timer::node::{Node, NodePath};
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Serialize, Deserialize)]
 pub struct TimeData {
     pub line_num: u16,
     pub node_path: NodePath,
@@ -13,15 +14,18 @@ pub struct TimeData {
     pub active: bool,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct TimerView {
     pub selected_line: u16,
 
-    area: Rect,
     root_node: Node,
     drawn_nodes: Vec<NodePath>,
     completed_tasks: Vec<u16>,
 
     time_data: Vec<TimeData>,
+
+    #[serde(skip)]
+    area: Rect,
 }
 
 impl TimerView {

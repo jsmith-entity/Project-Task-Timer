@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::{Receiver, channel};
 
 pub struct FileWatcher {
-    file_name: String,
-    file_path: PathBuf,
+    pub file_name: String,
+    pub file_path: PathBuf,
     _watcher: RecommendedWatcher,
     recv: Receiver<notify::Result<Event>>,
 }

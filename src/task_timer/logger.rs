@@ -2,6 +2,7 @@ use crate::task_timer::time_stamp::TimeStamp;
 
 use crate::task_timer::time_stamp::*;
 
+#[derive(Default)]
 pub struct Logger {
     messages: Vec<LogRecord>,
 }

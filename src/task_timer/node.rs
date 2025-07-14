@@ -1,6 +1,8 @@
 use std::time::Duration;
 
-#[derive(Clone, PartialEq, Debug)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, PartialEq, Debug, Deserialize, Serialize)]
 pub struct Node {
     pub heading: Option<String>,
     pub content: Vec<String>,

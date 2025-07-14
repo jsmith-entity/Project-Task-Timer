@@ -3,20 +3,28 @@ use ratatui::prelude::{Constraint, Direction, Layout, Rect};
 use ratatui::widgets::{Block, Borders};
 use std::time::Duration;
 
+use serde::{Deserialize, Serialize};
+
+use crate::task_timer::logger::Logger;
 use crate::task_timer::node::Node;
-use crate::task_timer::time_stamp::LogRecord;
 use crate::task_timer::views::{controls::*, logger::*, tasks::*, timers::*};
 
+#[derive(Serialize, Deserialize)]
 pub struct Window {
     pub file_name: String,
     pub content_height: u16,
     pub content_tree: Node,
 
-    pub task_list: MarkdownView,
     pub timers: TimerView,
-    pub controls: ControlView,
-    pub log: LoggerView,
+    pub task_list: TaskView,
 
+    #[serde(skip)]
+    logger: Logger,
+    #[serde(skip)]
+    pub controls: ControlView,
+    #[serde(skip)]
+    pub log: LoggerView,
+    #[serde(skip)]
     markdown_area_bounds: Rect,
 }
 
@@ -26,11 +34,12 @@ impl Window {
             file_name: "???".to_string(),
             content_height: 0,
             content_tree: Node::new(),
-            task_list: MarkdownView::new(),
+            task_list: TaskView::new(),
             timers: TimerView::new(),
+
+            logger: Logger::new(),
             controls: ControlView::new(),
             log: LoggerView::new(),
-
             markdown_area_bounds: Rect::new(0, 0, 0, 0),
         }
     }
@@ -103,8 +112,9 @@ impl Window {
         self.timers.selected_line = 1;
     }
 
-    pub fn update_log(&mut self, recent_log: Vec<LogRecord>) {
-        self.log.recent_log = recent_log;
+    pub fn log(&mut self, message: &str) {
+        self.logger.log(message);
+        self.log.recent_log = self.logger.recent();
     }
 
     fn draw_task_window(&mut self, frame: &mut Frame, root_area: Rect) {

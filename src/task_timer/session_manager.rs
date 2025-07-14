@@ -1,15 +1,14 @@
 use crossterm::event::{self, Event, KeyCode};
+use std::fs;
 use std::time::{Duration, Instant};
 
 use crate::file_watcher::file_watcher::FileWatcher;
-use crate::task_timer::logger::Logger;
 use crate::task_timer::node::Node;
 use crate::task_timer::window::Window;
 
 pub struct SessionManager {
     file_watcher: Option<FileWatcher>,
     window: Window,
-    logger: Logger,
 
     current_line: u16,
     last_update_tick: Instant,
@@ -27,7 +26,6 @@ impl SessionManager {
         Self {
             file_watcher: None,
             window: Window::new(),
-            logger: Logger::new(),
 
             current_line: 1,
             last_update_tick: Instant::now(),
@@ -67,8 +65,12 @@ impl SessionManager {
             }
 
             if self.last_save_tick.elapsed().as_secs() >= 1 {
-                self.logger.log("Saved");
-                self.window.update_log(self.logger.recent());
+                let message = match self.save() {
+                    Ok(()) => "Saved".to_string(),
+                    Err(e) => e.to_string(),
+                };
+
+                self.window.log(&message);
                 self.last_save_tick = Instant::now();
             }
 
@@ -128,5 +130,34 @@ impl SessionManager {
         }
 
         return InputResult::Continue;
+    }
+
+    fn save(&mut self) -> Result<(), &str> {
+        assert!(self.file_watcher.is_some());
+
+        let home_dir = std::env::home_dir().unwrap().to_string_lossy().to_string();
+
+        let saves = format!("{}/.project-saves", home_dir);
+        if !fs::exists(&saves).unwrap() {
+            if let Err(_) = fs::create_dir(&saves) {
+                return Err("Save failed. Could not create saves directory");
+            }
+        }
+
+        if let Some(dir_name) = self.file_watcher.as_ref().unwrap().file_path.file_name() {
+            let save_dir_name: String = dir_name.to_string_lossy().to_string();
+
+            let save_dir = format!("{}/{}", saves, save_dir_name);
+            if !fs::exists(&save_dir).unwrap() {
+                if let Err(_) = fs::create_dir(&save_dir) {
+                    return Err("Save failed. Could not create save directory");
+                }
+                // rewriting save
+            } else {
+                // new save
+            }
+        }
+
+        return Ok(());
     }
 }

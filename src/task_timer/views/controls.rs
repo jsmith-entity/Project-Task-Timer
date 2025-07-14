@@ -3,6 +3,7 @@ use ratatui::prelude::Rect;
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 
+#[derive(Default)]
 pub struct ControlView {
     controls: Vec<(String, String)>,
 }

@@ -4,8 +4,11 @@ use ratatui::style::{Color, Modifier, Style, Stylize};
 use ratatui::text::Line;
 use ratatui::widgets::Block;
 
+use serde::{Deserialize, Serialize};
+
 use crate::task_timer::node::{Node, NodePath};
 
+#[derive(Serialize, Deserialize)]
 struct NodeEntry {
     pub line_num: u16,
     pub node_path: NodePath,
@@ -13,19 +16,22 @@ struct NodeEntry {
     pub task_lines: Vec<u16>,
 }
 
-pub struct MarkdownView {
+#[derive(Serialize, Deserialize)]
+pub struct TaskView {
     pub selected_line: u16,
 
     content_tree: Node,
-    area: Rect,
     node_data: Vec<NodeEntry>,
     drawn_nodes: Vec<NodePath>,
     completed_lines: Vec<u16>,
 
     current_node_task_lines: Vec<u16>,
+
+    #[serde(skip)]
+    area: Rect,
 }
 
-impl MarkdownView {
+impl TaskView {
     pub fn new() -> Self {
         Self {
             selected_line: 1,

@@ -4,6 +4,7 @@ use ratatui::text::Line;
 
 use crate::task_timer::time_stamp::*;
 
+#[derive(Default)]
 pub struct LoggerView {
     pub recent_log: Vec<LogRecord>,
 }
