@@ -1,4 +1,4 @@
-use crossterm::event::{self, Event, KeyCode};
+use crossterm::event::{self, Event, KeyCode, KeyEvent};
 use std::fs;
 use std::time::{Duration, Instant};
 
@@ -6,19 +6,24 @@ use crate::file_watcher::file_watcher::FileWatcher;
 use crate::task_timer::node::Node;
 use crate::task_timer::window::Window;
 
+#[derive(Default, PartialEq, Clone)]
+enum SessionState {
+    #[default]
+    Running,
+    AwaitingPrompt,
+    Quitting,
+}
+
 pub struct SessionManager {
     file_watcher: Option<FileWatcher>,
     window: Window,
+    file_parent_dir: String,
 
     current_line: u16,
     last_update_tick: Instant,
     last_save_tick: Instant,
-}
 
-#[derive(PartialEq)]
-enum InputResult {
-    Continue,
-    Exit,
+    session_state: SessionState,
 }
 
 impl SessionManager {
@@ -26,10 +31,13 @@ impl SessionManager {
         Self {
             file_watcher: None,
             window: Window::new(),
+            file_parent_dir: String::new(),
 
             current_line: 1,
             last_update_tick: Instant::now(),
             last_save_tick: Instant::now(),
+
+            session_state: SessionState::default(),
         }
     }
 
@@ -46,13 +54,7 @@ impl SessionManager {
             }
         }
 
-        let path = self.file_watcher.as_ref().unwrap();
-        let dir_name = path
-            .file_path
-            .parent()
-            .and_then(|p| p.file_name())
-            .and_then(|str| str.to_str())
-            .unwrap();
+        let dir_name = self.project_dir_name();
 
         let save_dir = format!("{}/{}", saves, dir_name);
         if !fs::exists(&save_dir).unwrap() {
@@ -74,6 +76,18 @@ impl SessionManager {
         }
     }
 
+    fn project_dir_name(&self) -> String {
+        let path = self.file_watcher.as_ref().unwrap();
+        let dir_name = path
+            .file_path
+            .parent()
+            .and_then(|p| p.file_name())
+            .and_then(|str| str.to_str())
+            .unwrap();
+
+        return dir_name.to_string();
+    }
+
     pub fn attach_file_watcher(&mut self, file_name: &str) -> Result<(), notify::Error> {
         let watcher = FileWatcher::new(file_name)?;
         self.file_watcher = Some(watcher);
@@ -81,7 +95,6 @@ impl SessionManager {
         let initial_contents = self.file_watcher.as_ref().unwrap().read_file();
         let markdown_tree = Node::convert_from(&initial_contents);
         self.window.content_tree = markdown_tree;
-        self.window.file_name = file_name.to_string();
 
         Ok(())
     }
@@ -94,7 +107,17 @@ impl SessionManager {
 
         let mut terminal = ratatui::init();
 
+        self.window.title = self.project_dir_name();
+
         loop {
+            if self.session_state == SessionState::Quitting {
+                if let Err(e) = self.save() {
+                    // TODO: print save success after terminal has quit
+                    println!("{e}");
+                }
+                break;
+            }
+
             if let Some(buf) = self.file_watcher.as_mut().unwrap().poll_change() {
                 let new_content_tree = Node::convert_from(&buf);
                 self.window.content_tree = new_content_tree;
@@ -122,25 +145,38 @@ impl SessionManager {
             if event::poll(Duration::from_millis(50)).unwrap() {
                 let event = event::read().unwrap();
 
-                if self.handle_input(&event) == InputResult::Exit {
-                    break;
-                }
+                self.session_state = self.handle_events(&event);
             }
         }
         ratatui::restore();
     }
 
-    fn handle_input(&mut self, event: &Event) -> InputResult {
+    fn handle_events(&mut self, event: &Event) -> SessionState {
         let Event::Key(key_event) = event else {
-            return InputResult::Continue;
+            return self.session_state.clone();
         };
 
-        match key_event.code {
+        let new_state: SessionState = match self.session_state {
+            SessionState::Running => self.handle_normal_events(&key_event),
+            SessionState::AwaitingPrompt => self.handle_prompt_event(&key_event),
+            SessionState::Quitting => SessionState::Quitting,
+        };
+
+        if self.session_state == SessionState::AwaitingPrompt && new_state == SessionState::Running {
+            self.window.disable_popup();
+        }
+
+        return new_state;
+    }
+
+    fn handle_normal_events(&mut self, key_event: &KeyEvent) -> SessionState {
+        return match key_event.code {
             KeyCode::Char('j') => {
                 if self.current_line < self.window.content_height {
                     self.current_line += 1;
                     self.window.select_line(self.current_line);
                 }
+                SessionState::default()
             }
             KeyCode::Char('k') => {
                 if self.current_line > 1 {
@@ -148,29 +184,49 @@ impl SessionManager {
                     self.current_line -= 1;
                     self.window.select_line(self.current_line)
                 }
+                SessionState::default()
             }
             KeyCode::Char('s') => {
                 self.window.timers.try_activate();
+                SessionState::default()
             }
             KeyCode::Char(' ') => {
                 self.window.update_completed_task();
+                SessionState::default()
             }
             KeyCode::Char('o') => {
                 self.window.toggle_headings(true);
                 self.current_line = 1;
+                SessionState::default()
             }
             KeyCode::Char('c') => {
                 self.window.toggle_headings(false);
                 self.current_line = 1;
+                SessionState::default()
             }
             KeyCode::Enter => {
                 self.window.task_list.try_collapse();
+                SessionState::default()
             }
-            KeyCode::Esc | KeyCode::Char('q') => return InputResult::Exit,
-            _ => self.window.handle_events(key_event.code),
-        }
+            KeyCode::Esc | KeyCode::Char('q') => {
+                self.window.enable_popup("Exit Project?");
+                SessionState::AwaitingPrompt
+            }
+            _ => {
+                self.window.handle_events(key_event.code);
+                SessionState::default()
+            }
+        };
+    }
 
-        return InputResult::Continue;
+    // TODO: change to accomodate for any prompt, not just quit prompt - would include introducing
+    // new states
+    fn handle_prompt_event(&mut self, key_event: &KeyEvent) -> SessionState {
+        return match key_event.code {
+            KeyCode::Char('y') | KeyCode::Esc => SessionState::Quitting,
+            KeyCode::Char('n') => SessionState::Running,
+            _ => SessionState::AwaitingPrompt,
+        };
     }
 
     fn save(&mut self) -> Result<(), &str> {

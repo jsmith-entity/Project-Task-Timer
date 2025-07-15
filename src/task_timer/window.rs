@@ -1,8 +1,9 @@
 use crossterm::event::KeyCode;
+use ratatui::layout::Flex;
 use ratatui::prelude::{Constraint, Direction, Layout, Rect, Stylize};
 use ratatui::style::Color;
 use ratatui::text::Line;
-use ratatui::widgets::{Block, Borders, Padding, Tabs};
+use ratatui::widgets::{Block, Clear, Padding, Paragraph, Tabs};
 use ratatui::{Frame, symbols};
 use std::time::Duration;
 
@@ -34,7 +35,7 @@ impl SelectedTab {
 
 #[derive(Serialize, Deserialize)]
 pub struct Window {
-    pub file_name: String,
+    pub title: String,
     pub content_height: u16,
     pub content_tree: Node,
 
@@ -49,12 +50,16 @@ pub struct Window {
     markdown_area_bounds: Rect,
 
     selected_tab: SelectedTab,
+    #[serde(skip)]
+    show_popup: bool,
+    #[serde(skip)]
+    popup_message: String,
 }
 
 impl Window {
     pub fn new() -> Self {
         Self {
-            file_name: "???".to_string(),
+            title: "???".to_string(),
             content_height: 0,
             content_tree: Node::new(),
             task_list: TaskView::new(),
@@ -66,15 +71,8 @@ impl Window {
             markdown_area_bounds: Rect::new(0, 0, 0, 0),
 
             selected_tab: SelectedTab::Tab1,
-        }
-    }
-
-    pub fn handle_events(&mut self, key_code: KeyCode) {
-        match key_code {
-            KeyCode::Char('1') => self.selected_tab = SelectedTab::Tab1,
-            KeyCode::Char('2') => self.selected_tab = SelectedTab::Tab2,
-            KeyCode::Char('3') => self.selected_tab = SelectedTab::Tab3,
-            _ => {}
+            show_popup: false,
+            popup_message: String::new(),
         }
     }
 
@@ -89,6 +87,9 @@ impl Window {
 
         self.render_tabs(frame, tabs_area);
 
+        let title = self.title.clone().bold();
+        frame.render_widget(title, title_area);
+
         let block = Block::bordered()
             .border_set(symbols::border::PROPORTIONAL_TALL)
             .padding(Padding::horizontal(1))
@@ -97,7 +98,6 @@ impl Window {
         frame.render_widget(&block, body_area);
         let inner_area = block.inner(body_area);
 
-        // TODO: draw heading - tab selected
         match self.selected_tab {
             SelectedTab::Tab1 => self.draw_task_window(frame, inner_area),
             SelectedTab::Tab2 => self.draw_log_window(frame, inner_area),
@@ -118,6 +118,82 @@ impl Window {
             .divider(" ");
 
         frame.render_widget(erm, area);
+    }
+
+    fn draw_task_window(&mut self, frame: &mut Frame, area: Rect) {
+        self.markdown_area_bounds = area;
+
+        let areas = Layout::new(
+            Direction::Horizontal,
+            [Constraint::Length(13), Constraint::Min(0)],
+        )
+        .split(area);
+
+        let content = &self.content_tree;
+        let (task_height, drawn_data) = self.task_list.draw(frame, &areas[1], content);
+        let time_height = self.timers.draw(frame, &areas[0], &content, &drawn_data);
+        assert!(task_height == time_height);
+
+        self.content_height = task_height;
+
+        if self.show_popup {
+            self.render_popup(frame, area);
+        }
+    }
+
+    fn render_popup(&self, frame: &mut Frame, root_area: Rect) {
+        use Constraint::Percentage;
+        let area = Window::center(root_area, Percentage(20), Percentage(10));
+        let block = Paragraph::new(self.popup_message.clone()).block(Block::bordered());
+        frame.render_widget(Clear, area);
+        frame.render_widget(&block, area);
+    }
+
+    fn center(area: Rect, horizontal: Constraint, vertical: Constraint) -> Rect {
+        let [area] = Layout::horizontal([horizontal]).flex(Flex::Center).areas(area);
+        let [area] = Layout::vertical([vertical]).flex(Flex::Center).areas(area);
+        return area;
+    }
+
+    fn draw_control_window(&mut self, frame: &mut Frame, area: Rect) {
+        self.controls.draw(frame, &area);
+    }
+
+    fn draw_log_window(&mut self, frame: &mut Frame, area: Rect) {
+        self.log.draw(frame, &area);
+    }
+}
+
+impl Window {
+    pub fn handle_events(&mut self, key_code: KeyCode) {
+        match key_code {
+            KeyCode::Char('1') => self.selected_tab = SelectedTab::Tab1,
+            KeyCode::Char('2') => self.selected_tab = SelectedTab::Tab2,
+            KeyCode::Char('3') => self.selected_tab = SelectedTab::Tab3,
+            _ => {}
+        }
+    }
+
+    pub fn toggle_headings(&mut self, visible: bool) {
+        self.task_list.toggle_nodes(visible);
+        self.task_list.selected_line = 1;
+        self.timers.selected_line = 1;
+    }
+
+    pub fn log(&mut self, message: &str) {
+        self.logger.log(message);
+        self.log.recent_log = self.logger.recent();
+    }
+
+    pub fn enable_popup(&mut self, message: &str) -> bool {
+        self.show_popup = true;
+        self.popup_message = message.to_string();
+
+        return false;
+    }
+
+    pub fn disable_popup(&mut self) {
+        self.show_popup = false;
     }
 
     pub fn select_line(&mut self, line_num: u16) {
@@ -160,41 +236,5 @@ impl Window {
 
             node.completed_tasks[task_idx] = !node.completed_tasks[task_idx];
         }
-    }
-
-    pub fn toggle_headings(&mut self, visible: bool) {
-        self.task_list.toggle_nodes(visible);
-        self.task_list.selected_line = 1;
-        self.timers.selected_line = 1;
-    }
-
-    pub fn log(&mut self, message: &str) {
-        self.logger.log(message);
-        self.log.recent_log = self.logger.recent();
-    }
-
-    fn draw_task_window(&mut self, frame: &mut Frame, area: Rect) {
-        self.markdown_area_bounds = area;
-
-        let areas = Layout::new(
-            Direction::Horizontal,
-            [Constraint::Length(13), Constraint::Min(0)],
-        )
-        .split(area);
-
-        let content = &self.content_tree;
-        let (task_height, drawn_data) = self.task_list.draw(frame, &areas[1], content);
-        let time_height = self.timers.draw(frame, &areas[0], &content, &drawn_data);
-        assert!(task_height == time_height);
-
-        self.content_height = task_height;
-    }
-
-    fn draw_control_window(&mut self, frame: &mut Frame, area: Rect) {
-        self.controls.draw(frame, &area);
-    }
-
-    fn draw_log_window(&mut self, frame: &mut Frame, area: Rect) {
-        self.log.draw(frame, &area);
     }
 }

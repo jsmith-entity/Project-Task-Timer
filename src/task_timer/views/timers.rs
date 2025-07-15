@@ -80,8 +80,6 @@ impl TimerView {
             }
 
             self.time_data[idx].active = !self.time_data[idx].active;
-        } else {
-            println!("not found {}", self.selected_line);
         }
     }
 
