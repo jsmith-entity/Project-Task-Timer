@@ -68,6 +68,7 @@ impl SessionManager {
             let deserialised: Window = serde_json::from_str(&save_contents).unwrap();
             self.window = deserialised;
             self.window.log("Retrieved save file.");
+            self.current_line = self.window.task_list.selected_line;
         } else {
             self.window.log("Could not retrieve save file");
         }
@@ -104,7 +105,7 @@ impl SessionManager {
                 self.last_update_tick = Instant::now();
             }
 
-            if self.last_save_tick.elapsed().as_secs() >= 1 {
+            if self.last_save_tick.elapsed().as_secs() >= 3600 {
                 let message = match self.save() {
                     Ok(()) => "Saved".to_string(),
                     Err(e) => e.to_string(),
@@ -166,7 +167,7 @@ impl SessionManager {
                 self.window.task_list.try_collapse();
             }
             KeyCode::Esc | KeyCode::Char('q') => return InputResult::Exit,
-            _ => (),
+            _ => self.window.handle_events(key_event.code),
         }
 
         return InputResult::Continue;

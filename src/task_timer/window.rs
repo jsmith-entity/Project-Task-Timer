@@ -1,13 +1,36 @@
-use ratatui::Frame;
-use ratatui::prelude::{Constraint, Direction, Layout, Rect};
-use ratatui::widgets::{Block, Borders};
+use crossterm::event::KeyCode;
+use ratatui::prelude::{Constraint, Direction, Layout, Rect, Stylize};
+use ratatui::style::Color;
+use ratatui::text::Line;
+use ratatui::widgets::{Block, Borders, Padding, Tabs};
+use ratatui::{Frame, symbols};
 use std::time::Duration;
 
+use ratatui::prelude::Constraint::{Length, Min};
+
 use serde::{Deserialize, Serialize};
+use strum::IntoEnumIterator;
+use strum_macros::{Display, EnumIter};
 
 use crate::task_timer::logger::Logger;
 use crate::task_timer::node::Node;
 use crate::task_timer::views::{controls::*, logger::*, tasks::*, timers::*};
+
+#[derive(Serialize, Deserialize, EnumIter, Display, Clone, Copy)]
+enum SelectedTab {
+    #[strum(to_string = "Main")]
+    Tab1,
+    #[strum(to_string = "Log")]
+    Tab2,
+    #[strum(to_string = "Controls")]
+    Tab3,
+}
+
+impl SelectedTab {
+    fn title(self) -> Line<'static> {
+        return format!("  {self}  ").fg(Color::Gray).into();
+    }
+}
 
 #[derive(Serialize, Deserialize)]
 pub struct Window {
@@ -24,6 +47,8 @@ pub struct Window {
     pub log: LoggerView,
     #[serde(skip)]
     markdown_area_bounds: Rect,
+
+    selected_tab: SelectedTab,
 }
 
 impl Window {
@@ -39,27 +64,60 @@ impl Window {
             controls: ControlView::new(),
             log: LoggerView::new(),
             markdown_area_bounds: Rect::new(0, 0, 0, 0),
+
+            selected_tab: SelectedTab::Tab1,
+        }
+    }
+
+    pub fn handle_events(&mut self, key_code: KeyCode) {
+        match key_code {
+            KeyCode::Char('1') => self.selected_tab = SelectedTab::Tab1,
+            KeyCode::Char('2') => self.selected_tab = SelectedTab::Tab2,
+            KeyCode::Char('3') => self.selected_tab = SelectedTab::Tab3,
+            _ => {}
         }
     }
 
     pub fn render(&mut self, frame: &mut Frame) {
         let area = frame.area();
-        let root_layout = Layout::new(
-            Direction::Vertical,
-            [Constraint::Percentage(70), Constraint::Percentage(30)],
-        )
-        .split(area);
 
-        self.draw_task_window(frame, root_layout[0]);
+        let vertical = Layout::vertical([Length(1), Min(0)]);
+        let [header_area, body_area] = vertical.areas(area);
 
-        let bottom_layout = Layout::new(
-            Direction::Horizontal,
-            [Constraint::Percentage(60), Constraint::Percentage(40)],
-        )
-        .split(root_layout[1]);
+        let horizontal = Layout::horizontal([Min(0), Length(20)]);
+        let [tabs_area, title_area] = horizontal.areas(header_area);
 
-        self.draw_control_window(frame, bottom_layout[0]);
-        self.draw_log_window(frame, bottom_layout[1]);
+        self.render_tabs(frame, tabs_area);
+
+        let block = Block::bordered()
+            .border_set(symbols::border::PROPORTIONAL_TALL)
+            .padding(Padding::horizontal(1))
+            .border_style(Color::Gray);
+
+        frame.render_widget(&block, body_area);
+        let inner_area = block.inner(body_area);
+
+        // TODO: draw heading - tab selected
+        match self.selected_tab {
+            SelectedTab::Tab1 => self.draw_task_window(frame, inner_area),
+            SelectedTab::Tab2 => self.draw_log_window(frame, inner_area),
+            SelectedTab::Tab3 => self.draw_control_window(frame, inner_area),
+        }
+    }
+
+    pub fn render_tabs(&self, frame: &mut Frame, area: Rect) {
+        let titles = SelectedTab::iter().map(SelectedTab::title);
+
+        let selected_tab_idx = self.selected_tab as usize;
+        let highlight_style = (Color::Black, Color::Gray);
+
+        let erm = Tabs::new(titles)
+            .highlight_style(highlight_style)
+            .select(selected_tab_idx)
+            .padding("", "")
+            .divider(" ");
+
+        frame.render_widget(erm, area);
     }
 
     pub fn select_line(&mut self, line_num: u16) {
@@ -115,19 +173,14 @@ impl Window {
         self.log.recent_log = self.logger.recent();
     }
 
-    fn draw_task_window(&mut self, frame: &mut Frame, root_area: Rect) {
-        let local_title = self.file_name.clone();
-        let local_block = Block::default().title(local_title).borders(Borders::ALL);
-        frame.render_widget(&local_block, root_area);
-
-        let inner_area = local_block.inner(root_area);
-        self.markdown_area_bounds = inner_area;
+    fn draw_task_window(&mut self, frame: &mut Frame, area: Rect) {
+        self.markdown_area_bounds = area;
 
         let areas = Layout::new(
             Direction::Horizontal,
             [Constraint::Length(13), Constraint::Min(0)],
         )
-        .split(inner_area);
+        .split(area);
 
         let content = &self.content_tree;
         let (task_height, drawn_data) = self.task_list.draw(frame, &areas[1], content);
@@ -138,22 +191,10 @@ impl Window {
     }
 
     fn draw_control_window(&mut self, frame: &mut Frame, area: Rect) {
-        let local_block = Block::default()
-            .title("Controls".to_string())
-            .borders(Borders::ALL);
-        frame.render_widget(&local_block, area);
-
-        let inner_area = local_block.inner(area);
-
-        self.controls.draw(frame, &inner_area);
+        self.controls.draw(frame, &area);
     }
 
     fn draw_log_window(&mut self, frame: &mut Frame, area: Rect) {
-        let local_block = Block::default().title("Log".to_string()).borders(Borders::ALL);
-        frame.render_widget(&local_block, area);
-
-        let inner_area = local_block.inner(area);
-
-        self.log.draw(frame, &inner_area);
+        self.log.draw(frame, &area);
     }
 }
