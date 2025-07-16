@@ -91,6 +91,15 @@ impl TimerView {
         return self.time_data.iter().any(|e| e.line_num == self.selected_line);
     }
 
+    pub fn active_time_lines(&self) -> Vec<u16> {
+        return self
+            .time_data
+            .iter()
+            .filter(|e| e.active)
+            .map(|e| e.line_num)
+            .collect();
+    }
+
     pub fn stop_selected_time(&mut self) {
         if let Some(pos) = self
             .time_data

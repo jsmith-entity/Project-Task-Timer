@@ -13,11 +13,12 @@ use std::time::Duration;
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
 
-use super::popup::Popup;
-use crate::task_timer::logger::Logger;
-use crate::task_timer::node::Node;
-use crate::task_timer::views::{controls::*, logger::*, tasks::*, timers::*};
-
+use super::{
+    logger::Logger,
+    node::Node,
+    popup::Popup,
+    views::{controls::*, logger::*, task_status::*, tasks::*, timers::*},
+};
 #[derive(Serialize, Deserialize, EnumIter, Display, Clone, Copy)]
 enum SelectedTab {
     #[strum(to_string = "Main")]
@@ -43,6 +44,8 @@ pub struct Window {
     pub timers: TimerView,
     pub task_list: TaskView,
     #[serde(skip)]
+    pub task_status: TaskStatus,
+    #[serde(skip)]
     logger: Logger,
     pub controls: ControlView,
     #[serde(skip)]
@@ -61,8 +64,9 @@ impl Window {
             title: "???".to_string(),
             content_height: 0,
             content_tree: Node::new(),
-            task_list: TaskView::new(),
             timers: TimerView::new(),
+            task_list: TaskView::new(),
+            task_status: TaskStatus::new(),
 
             logger: Logger::new(),
             controls: ControlView::new(),
@@ -128,7 +132,7 @@ impl Window {
 
         let areas = Layout::new(
             Direction::Horizontal,
-            [Constraint::Length(13), Constraint::Min(0)],
+            [Constraint::Length(13), Constraint::Length(30), Constraint::Min(0)],
         )
         .split(area);
 
@@ -136,6 +140,10 @@ impl Window {
         let (task_height, drawn_data) = self.task_list.draw(frame, &areas[1], content);
         let time_height = self.timers.draw(frame, &areas[0], &content, &drawn_data);
         assert!(task_height == time_height);
+
+        let active_times = self.timers.active_time_lines();
+        self.task_status
+            .render(frame, areas[2], content, &drawn_data, &active_times);
 
         self.content_height = task_height;
     }
