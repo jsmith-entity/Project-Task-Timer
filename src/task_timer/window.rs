@@ -14,11 +14,12 @@ use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
 
 use super::{
-    logger::Logger,
+    logger::{LogType, Logger},
     node::Node,
     popup::Popup,
     views::{controls::*, logger::*, task_status::*, tasks::*, timers::*},
 };
+
 #[derive(Serialize, Deserialize, EnumIter, Display, Clone, Copy)]
 enum SelectedTab {
     #[strum(to_string = "Main")]
@@ -174,7 +175,7 @@ impl Window {
     }
 
     pub fn log(&mut self, message: &str) {
-        self.logger.log(message);
+        self.logger.log(message, LogType::INFO);
         self.log.recent_log = self.logger.recent();
     }
 

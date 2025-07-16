@@ -1,7 +1,5 @@
 use chrono::prelude::*;
 
-pub type LogRecord = (TimeStamp, String);
-
 #[derive(Clone, Debug)]
 pub struct TimeStamp {
     day: u32,
@@ -25,7 +23,7 @@ impl TimeStamp {
 
     pub fn print(&self) -> String {
         return format!(
-            "{} {}: {}:{}:{:02}",
+            "{} {}: {:02}:{:02}:{:02}",
             self.day, self.month, self.hours, self.minutes, self.seconds
         );
     }

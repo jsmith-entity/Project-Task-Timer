@@ -1,32 +1,66 @@
+use ratatui::{prelude::Stylize, style::Color, text::Line};
+
+use strum_macros::{Display, EnumIter};
+
 use crate::task_timer::time_stamp::TimeStamp;
 
-use crate::task_timer::time_stamp::*;
+#[derive(EnumIter, Display, Clone)]
+pub enum LogType {
+    #[strum(to_string = "INFO")]
+    INFO,
+    #[strum(to_string = "ERROR")]
+    ERROR,
+}
+
+impl LogType {
+    pub fn title(self) -> Line<'static> {
+        return format!("{self}").fg(Color::Blue).into();
+    }
+
+    fn color(&self) -> Color {
+        return match self {
+            LogType::INFO => Color::Blue,
+            LogType::ERROR => Color::Red,
+        };
+    }
+}
+
+#[derive(Clone)]
+pub struct LogRecord {
+    pub log_type: LogType,
+    pub time_stamp: TimeStamp,
+    pub message: String,
+}
 
 #[derive(Default)]
 pub struct Logger {
-    messages: Vec<LogRecord>,
+    log_arr: Vec<LogRecord>,
 }
 
 impl Logger {
     pub fn new() -> Self {
-        return Self { messages: Vec::new() };
+        return Self { log_arr: Vec::new() };
     }
 
-    pub fn log(&mut self, message: &str) {
-        self.messages.push((TimeStamp::new(), message.to_string()));
+    pub fn log(&mut self, message: &str, log_type: LogType) {
+        self.log_arr.push(LogRecord {
+            log_type,
+            time_stamp: TimeStamp::new(),
+            message: message.to_string(),
+        });
 
-        if self.messages.len() >= 20 {
-            self.messages.remove(0);
+        if self.log_arr.len() >= 20 {
+            self.log_arr.remove(0);
         }
     }
 
     pub fn recent(&self) -> Vec<LogRecord> {
         const SIZE: usize = 4;
 
-        let recent_log = if self.messages.len() >= SIZE {
-            &self.messages[self.messages.len() - SIZE..]
+        let recent_log = if self.log_arr.len() >= SIZE {
+            &self.log_arr[self.log_arr.len() - SIZE..]
         } else {
-            &self.messages[..]
+            &self.log_arr[..]
         };
 
         return recent_log.to_vec();
