@@ -1,18 +1,19 @@
 use crossterm::event::KeyCode;
-use ratatui::layout::Flex;
-use ratatui::prelude::{Constraint, Direction, Layout, Rect, Stylize};
-use ratatui::style::Color;
-use ratatui::text::Line;
-use ratatui::widgets::{Block, Clear, Padding, Paragraph, Tabs};
-use ratatui::{Frame, symbols};
-use std::time::Duration;
-
-use ratatui::prelude::Constraint::{Length, Min};
+use ratatui::{
+    Frame,
+    prelude::{Constraint, Direction, Layout, Rect, Stylize},
+    style::Color,
+    symbols,
+    text::Line,
+    widgets::{Block, Padding, Tabs},
+};
 
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
 
+use super::popup::Popup;
 use crate::task_timer::logger::Logger;
 use crate::task_timer::node::Node;
 use crate::task_timer::views::{controls::*, logger::*, tasks::*, timers::*};
@@ -51,9 +52,7 @@ pub struct Window {
 
     selected_tab: SelectedTab,
     #[serde(skip)]
-    show_popup: bool,
-    #[serde(skip)]
-    popup_message: String,
+    popup: Option<Popup>,
 }
 
 impl Window {
@@ -71,12 +70,12 @@ impl Window {
             markdown_area_bounds: Rect::new(0, 0, 0, 0),
 
             selected_tab: SelectedTab::Tab1,
-            show_popup: false,
-            popup_message: String::new(),
+            popup: None,
         }
     }
 
     pub fn render(&mut self, frame: &mut Frame) {
+        use Constraint::{Length, Min};
         let area = frame.area();
 
         let vertical = Layout::vertical([Length(1), Min(0)]);
@@ -102,6 +101,10 @@ impl Window {
             SelectedTab::Tab1 => self.draw_task_window(frame, inner_area),
             SelectedTab::Tab2 => self.draw_log_window(frame, inner_area),
             SelectedTab::Tab3 => self.draw_control_window(frame, inner_area),
+        }
+
+        if self.popup.is_some() {
+            self.popup.as_ref().unwrap().render(frame, area);
         }
     }
 
@@ -135,24 +138,6 @@ impl Window {
         assert!(task_height == time_height);
 
         self.content_height = task_height;
-
-        if self.show_popup {
-            self.render_popup(frame, area);
-        }
-    }
-
-    fn render_popup(&self, frame: &mut Frame, root_area: Rect) {
-        use Constraint::Percentage;
-        let area = Window::center(root_area, Percentage(20), Percentage(10));
-        let block = Paragraph::new(self.popup_message.clone()).block(Block::bordered());
-        frame.render_widget(Clear, area);
-        frame.render_widget(&block, area);
-    }
-
-    fn center(area: Rect, horizontal: Constraint, vertical: Constraint) -> Rect {
-        let [area] = Layout::horizontal([horizontal]).flex(Flex::Center).areas(area);
-        let [area] = Layout::vertical([vertical]).flex(Flex::Center).areas(area);
-        return area;
     }
 
     fn draw_control_window(&mut self, frame: &mut Frame, area: Rect) {
@@ -185,15 +170,13 @@ impl Window {
         self.log.recent_log = self.logger.recent();
     }
 
-    pub fn enable_popup(&mut self, message: &str) -> bool {
-        self.show_popup = true;
-        self.popup_message = message.to_string();
-
-        return false;
+    pub fn enable_popup(&mut self, message: &str) {
+        let new_popup = Popup::new(message.to_string());
+        self.popup = Some(new_popup);
     }
 
     pub fn disable_popup(&mut self) {
-        self.show_popup = false;
+        self.popup = None;
     }
 
     pub fn select_line(&mut self, line_num: u16) {

@@ -17,7 +17,6 @@ enum SessionState {
 pub struct SessionManager {
     file_watcher: Option<FileWatcher>,
     window: Window,
-    file_parent_dir: String,
 
     current_line: u16,
     last_update_tick: Instant,
@@ -31,7 +30,6 @@ impl SessionManager {
         Self {
             file_watcher: None,
             window: Window::new(),
-            file_parent_dir: String::new(),
 
             current_line: 1,
             last_update_tick: Instant::now(),
