@@ -17,7 +17,6 @@ use super::{
     logger::{LogType, Logger},
     node::Node,
     popup::Popup,
-    session_manager::SessionState,
     views::{controls::*, logger::*, task_status::*, tasks::*, timers::*},
 };
 
@@ -153,7 +152,7 @@ impl Window {
     }
 
     fn draw_control_window(&mut self, frame: &mut Frame, area: Rect) {
-        self.controls.draw(frame, &area);
+        self.controls.draw(frame, area);
     }
 
     fn draw_log_window(&mut self, frame: &mut Frame, area: Rect) {
@@ -162,7 +161,7 @@ impl Window {
 }
 
 impl Window {
-    pub fn handle_events(&mut self, key_code: KeyCode) -> SessionState {
+    pub fn handle_events(&mut self, key_code: KeyCode) {
         let old_tab = self.selected_tab;
 
         match key_code {
@@ -174,16 +173,12 @@ impl Window {
 
         let changed_tabs = if old_tab == self.selected_tab { false } else { true };
         if !changed_tabs {
-            let new_state = match self.selected_tab {
+            match self.selected_tab {
                 SelectedTab::Tab1 => self.handle_main_events(key_code),
                 SelectedTab::Tab2 => self.handle_log_events(key_code),
-                _ => SessionState::Running,
+                _ => (),
             };
-
-            return new_state;
         }
-
-        return SessionState::Running;
     }
 
     pub fn toggle_headings(&mut self, visible: bool) {
@@ -256,9 +251,7 @@ impl Window {
         }
     }
 
-    fn handle_main_events(&mut self, key_code: KeyCode) -> SessionState {
-        let mut new_state = SessionState::Running;
-
+    fn handle_main_events(&mut self, key_code: KeyCode) {
         match key_code {
             KeyCode::Char('j') => self.select_line(self.selected_line + 1),
             KeyCode::Char('k') => self.select_line(self.selected_line - 1),
@@ -273,30 +266,15 @@ impl Window {
                 self.toggle_headings(false);
                 self.select_line(2);
             }
-            KeyCode::Esc | KeyCode::Char('q') => {
-                self.enable_popup("Exit Project?");
-                new_state = SessionState::AwaitingPrompt;
-            }
             _ => (),
         };
-
-        return new_state;
     }
 
-    fn handle_log_events(&mut self, key_code: KeyCode) -> SessionState {
-        let mut new_state = SessionState::Running;
-
+    fn handle_log_events(&mut self, key_code: KeyCode) {
         match key_code {
             KeyCode::Char('h') => self.log.prev_filter(),
             KeyCode::Char('l') => self.log.next_filter(),
-            KeyCode::Esc | KeyCode::Char('q') => {
-                self.enable_popup("Exit Project?");
-                new_state = SessionState::AwaitingPrompt;
-            }
-
             _ => (),
         }
-
-        return new_state;
     }
 }

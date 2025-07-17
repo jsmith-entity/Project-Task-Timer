@@ -161,21 +161,28 @@ impl SessionManager {
             return self.session_state.clone();
         };
 
-        let new_state: SessionState = match self.session_state {
-            SessionState::Running => self.handle_normal_events(&key_event),
+        let mut new_state: SessionState = match self.session_state {
+            SessionState::Running => {
+                self.window.handle_events(key_event.code);
+                SessionState::Running
+            }
             SessionState::AwaitingPrompt => self.handle_prompt_event(&key_event),
             SessionState::Quitting => SessionState::Quitting,
         };
+
+        match key_event.code {
+            KeyCode::Esc | KeyCode::Char('q') => {
+                self.window.enable_popup("Exit Project?");
+                new_state = SessionState::AwaitingPrompt;
+            }
+            _ => (),
+        }
 
         if self.session_state == SessionState::AwaitingPrompt && new_state == SessionState::Running {
             self.window.disable_popup();
         }
 
         return new_state;
-    }
-
-    fn handle_normal_events(&mut self, key_event: &KeyEvent) -> SessionState {
-        return self.window.handle_events(key_event.code);
     }
 
     // TODO: change to accomodate for any prompt, not just quit prompt - would include introducing
