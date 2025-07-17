@@ -1,7 +1,7 @@
 use crossterm::event::KeyCode;
 use ratatui::{
     Frame,
-    prelude::{Constraint, Direction, Layout, Rect, Stylize},
+    prelude::{Constraint, Layout, Rect, Stylize},
     style::Color,
     symbols,
     text::Line,
@@ -9,15 +9,14 @@ use ratatui::{
 };
 
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
 
-use super::{
+use crate::task_timer::{
     logger::{LogType, Logger},
-    node::Node,
+    node::{Node, NodePath},
     popup::Popup,
-    views::{controls::*, logger::*, task_status::*, tasks::*, timers::*},
+    views::{controls::*, home::main_view::*, logger::*},
 };
 
 #[derive(Serialize, Deserialize, EnumIter, Display, Clone, Copy, PartialEq)]
@@ -36,26 +35,39 @@ impl SelectedTab {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum RenderedNodeType {
+    Heading,
+    Task(usize),            // Index of the task in node.content
+    ChildHeading(NodePath), // Immediate child heading
+}
+
+#[derive(Clone, Debug)]
+pub struct RenderedNode {
+    pub node_type: RenderedNodeType,
+    pub node_path: NodePath,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Window {
     pub title: String,
     pub content_height: u16,
     pub content_tree: Node,
-    pub selected_line: u16,
 
-    pub timers: TimerView,
-    pub task_list: TaskView,
+    pub selected_line: u16,
     #[serde(skip)]
-    pub task_status: TaskStatus,
+    pub display_data: Vec<RenderedNode>,
+
+    displayed_node: Node,
+    selected_tab: SelectedTab,
+
+    #[serde(skip)]
+    main_view: MainView,
     #[serde(skip)]
     logger: Logger,
     pub controls: ControlView,
     #[serde(skip)]
     pub log: LoggerView,
-    #[serde(skip)]
-    markdown_area_bounds: Rect,
-
-    selected_tab: SelectedTab,
     #[serde(skip)]
     popup: Option<Popup>,
 }
@@ -66,16 +78,15 @@ impl Window {
             title: "???".to_string(),
             content_height: 0,
             content_tree: Node::new(),
-            selected_line: 2,
+            display_data: Vec::new(),
+            displayed_node: Node::new(),
+            selected_line: 1,
 
-            timers: TimerView::new(),
-            task_list: TaskView::new(),
-            task_status: TaskStatus::new(),
+            main_view: MainView::new(),
 
             logger: Logger::new(),
             controls: ControlView::new(),
             log: LoggerView::new(),
-            markdown_area_bounds: Rect::new(0, 0, 0, 0),
 
             selected_tab: SelectedTab::Tab1,
             popup: None,
@@ -105,8 +116,17 @@ impl Window {
         frame.render_widget(&block, body_area);
         let inner_area = block.inner(body_area);
 
+        self.main_view.update(
+            inner_area,
+            self.content_tree.clone(),
+            self.display_data.clone(),
+            self.selected_line,
+        );
+
+        self.content_height = self.display_data.len() as u16;
+
         match self.selected_tab {
-            SelectedTab::Tab1 => self.draw_task_window(frame, inner_area),
+            SelectedTab::Tab1 => frame.render_widget(&self.main_view, inner_area),
             SelectedTab::Tab2 => self.draw_log_window(frame, inner_area),
             SelectedTab::Tab3 => self.draw_control_window(frame, inner_area),
         }
@@ -131,26 +151,6 @@ impl Window {
         frame.render_widget(erm, area);
     }
 
-    fn draw_task_window(&mut self, frame: &mut Frame, area: Rect) {
-        self.markdown_area_bounds = area;
-
-        let areas = Layout::new(
-            Direction::Horizontal,
-            [Constraint::Length(16), Constraint::Length(30), Constraint::Min(0)],
-        )
-        .split(area);
-
-        let content = &self.content_tree;
-        let (task_height, drawn_data) = self.task_list.render(frame, &areas[1], content);
-        let time_height = self.timers.draw(frame, &areas[0], &content, &drawn_data);
-        assert!(task_height == time_height);
-        self.content_height = task_height;
-
-        let active_times = self.timers.active_time_lines();
-        self.task_status
-            .render(frame, areas[2], content, &drawn_data, &active_times);
-    }
-
     fn draw_control_window(&mut self, frame: &mut Frame, area: Rect) {
         self.controls.draw(frame, area);
     }
@@ -161,6 +161,21 @@ impl Window {
 }
 
 impl Window {
+    pub fn update_tree(&mut self, new_root: Node) {
+        self.content_tree = new_root.clone();
+        self.displayed_node = self.content_tree.clone();
+
+        self.update_display_data();
+    }
+
+    fn update_display_data(&mut self) {
+        let res = MainView::collect_display_data(&self.content_tree, &self.displayed_node);
+        match res {
+            Ok(new_data) => self.display_data = new_data,
+            Err(e) => self.log(&e, LogType::ERROR),
+        }
+    }
+
     pub fn handle_events(&mut self, key_code: KeyCode) {
         let old_tab = self.selected_tab;
 
@@ -181,10 +196,6 @@ impl Window {
         }
     }
 
-    pub fn toggle_headings(&mut self, visible: bool) {
-        self.task_list.toggle_nodes(visible);
-    }
-
     pub fn log(&mut self, message: &str, log_type: LogType) {
         self.logger.log(message, log_type);
         self.log.recent_log = self.logger.recent();
@@ -200,54 +211,35 @@ impl Window {
     }
 
     pub fn select_line(&mut self, line_num: u16) {
-        let area_bounds = self.markdown_area_bounds;
+        let area_bounds = self.main_view.content_area;
 
-        let win_max_height = area_bounds.y + area_bounds.height;
-
-        let lower_bound = area_bounds.y;
-        let upper_bound = if self.content_height < win_max_height {
-            self.content_height + 2
-        } else {
-            win_max_height
-        };
+        let lower_bound = area_bounds.y - 1;
+        let upper_bound = self.content_height + 1;
 
         let within_bounds = line_num >= lower_bound && line_num < upper_bound;
         if within_bounds {
-            self.task_list.selected_line = line_num;
-            self.timers.selected_line = line_num;
             self.selected_line = line_num;
         }
     }
 
-    pub fn update_time(&mut self) {
-        let node_data = self.timers.active_times();
+    fn enter_subheading(&mut self) {
+        // TODO:update breadcrumb
 
-        for entry in node_data.iter() {
-            let node = self.content_tree.get_node(&entry.node_path).unwrap();
-
-            node.content_times[entry.task_num] += Duration::from_secs(1);
-        }
-    }
-
-    pub fn update_completed_task(&mut self) {
-        if let Some((task_idx, found_path)) = self.task_list.selected_task() {
-            let node = self.content_tree.get_node(found_path).unwrap();
-
-            // stop a timer if it exists
-            if self.timers.active_on_selected() {
-                self.timers.stop_selected_time();
-            }
-
-            node.completed_tasks[task_idx] = !node.completed_tasks[task_idx];
-
-            let task_name = node.content[task_idx].clone();
-            if node.completed_tasks[task_idx] {
-                let msg = format!("Completed task {task_name}");
-                self.log(&msg, LogType::INFO);
+        if let Some(new_node_path) = self.main_view.get_subheading_path(self.selected_line as usize) {
+            if let Some(new_node) = self.content_tree.get_node(&new_node_path) {
+                self.displayed_node = new_node.clone();
+                self.update_display_data();
             } else {
-                let msg = format!("Cancelled completion of task {task_name}");
-                self.log(&msg, LogType::INFO);
+                self.log(
+                    "Failed to convert node path to node when entering subheading",
+                    LogType::ERROR,
+                );
             }
+        } else {
+            self.log(
+                "Failed to retrieve subheading from display data when entering subheading",
+                LogType::ERROR,
+            );
         }
     }
 
@@ -255,17 +247,9 @@ impl Window {
         match key_code {
             KeyCode::Char('j') => self.select_line(self.selected_line + 1),
             KeyCode::Char('k') => self.select_line(self.selected_line - 1),
-            KeyCode::Char('s') => self.timers.try_activate(),
-            KeyCode::Char(' ') => self.update_completed_task(),
-            KeyCode::Enter => self.task_list.try_collapse(),
-            KeyCode::Char('o') => {
-                self.toggle_headings(true);
-                self.select_line(2);
-            }
-            KeyCode::Char('c') => {
-                self.toggle_headings(false);
-                self.select_line(2);
-            }
+            // KeyCode::Char('s') => self.timers.try_activate(),
+            // KeyCode::Char(' ') => self.update_completed_task(),
+            KeyCode::Enter => self.enter_subheading(),
             _ => (),
         };
     }

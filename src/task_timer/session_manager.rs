@@ -92,7 +92,7 @@ impl SessionManager {
 
         let initial_contents = self.file_watcher.as_ref().unwrap().read_file();
         let markdown_tree = Node::convert_from(&initial_contents);
-        self.window.content_tree = markdown_tree;
+        self.window.update_tree(markdown_tree);
 
         Ok(())
     }
@@ -118,11 +118,11 @@ impl SessionManager {
 
             if let Some(buf) = self.file_watcher.as_mut().unwrap().poll_change() {
                 let new_content_tree = Node::convert_from(&buf);
-                self.window.content_tree = new_content_tree;
+                self.window.update_tree(new_content_tree);
             }
 
             if self.last_update_tick.elapsed().as_secs() >= 1 {
-                self.window.update_time();
+                //self.window.update_time();
                 self.last_update_tick = Instant::now();
             }
 

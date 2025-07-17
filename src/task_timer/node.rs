@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, PartialEq, Debug, Deserialize, Serialize)]
+#[derive(Default, Clone, PartialEq, Debug, Deserialize, Serialize)]
 pub struct Node {
     pub heading: Option<String>,
     pub content: Vec<String>,
@@ -67,10 +67,19 @@ impl Node {
         return false;
     }
 
-    pub fn get_node(&mut self, path: &NodePath) -> Option<&mut Node> {
+    pub fn get_node_mut(&mut self, path: &NodePath) -> Option<&mut Node> {
         let mut current = self;
         for &idx in path {
             current = current.children.get_mut(idx)?;
+        }
+
+        return Some(current);
+    }
+
+    pub fn get_node(&self, path: &NodePath) -> Option<&Node> {
+        let mut current = self;
+        for &idx in path {
+            current = current.children.get(idx)?
         }
 
         return Some(current);
