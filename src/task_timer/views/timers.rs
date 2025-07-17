@@ -57,7 +57,8 @@ impl TimerView {
         let mut height = 0;
 
         for node in root_node.children.iter() {
-            height = self.try_draw_timers(frame, node, height);
+            let indent = 0;
+            height = self.try_draw_timers(frame, node, height, indent);
         }
 
         return height;
@@ -110,20 +111,17 @@ impl TimerView {
         }
     }
 
-    fn try_draw_timers(&mut self, frame: &mut Frame, node: &Node, mut height: u16) -> u16 {
+    fn try_draw_timers(&mut self, frame: &mut Frame, node: &Node, mut height: u16, indent: usize) -> u16 {
         let mut node_path = Vec::new();
         if !Node::find_path(&self.root_node, &node, &mut node_path) {
             panic!("Comparing nodes that are not in the same tree.");
         }
 
-        if self.drawn_nodes.contains(&node_path) {
-            height += self.draw_timers(frame, node, &node_path, height, true);
-        } else {
-            height += self.draw_timers(frame, node, &node_path, height, false);
-        }
+        let render = self.drawn_nodes.contains(&node_path);
+        height += self.draw_timers(frame, node, &node_path, height, render, indent);
 
         for child_node in node.children.iter() {
-            height = self.try_draw_timers(frame, child_node, height);
+            height = self.try_draw_timers(frame, child_node, height, indent + 1);
         }
 
         return height;
@@ -136,6 +134,7 @@ impl TimerView {
         node_path: &NodePath,
         height: u16,
         draw_content: bool,
+        indent: usize,
     ) -> u16 {
         assert!(node.content.len() == node.content_times.len());
 
@@ -151,7 +150,7 @@ impl TimerView {
         let initial_y = timer_area.y;
         for (idx, time) in node.content_times.iter().enumerate() {
             if draw_content {
-                let line = self.create_line(time.as_secs(), timer_area.y, 1);
+                let line = self.create_line(time.as_secs(), timer_area.y, indent + 1);
 
                 frame.render_widget(line, timer_area);
 
@@ -164,7 +163,7 @@ impl TimerView {
             total_seconds += time.as_secs();
         }
 
-        let heading_line = self.create_line(total_seconds, initial_y - 1, 0);
+        let heading_line = self.create_line(total_seconds, initial_y - 1, indent);
         let heading_area = Rect::new(self.area.x, initial_y - 1, self.area.width, self.area.height);
         frame.render_widget(heading_line, heading_area);
 

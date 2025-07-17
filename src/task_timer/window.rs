@@ -136,12 +136,12 @@ impl Window {
 
         let areas = Layout::new(
             Direction::Horizontal,
-            [Constraint::Length(13), Constraint::Length(30), Constraint::Min(0)],
+            [Constraint::Length(16), Constraint::Length(30), Constraint::Min(0)],
         )
         .split(area);
 
         let content = &self.content_tree;
-        let (task_height, drawn_data) = self.task_list.draw(frame, &areas[1], content);
+        let (task_height, drawn_data) = self.task_list.render(frame, &areas[1], content);
         let time_height = self.timers.draw(frame, &areas[0], &content, &drawn_data);
         assert!(task_height == time_height);
         self.content_height = task_height;
