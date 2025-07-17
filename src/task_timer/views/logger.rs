@@ -19,7 +19,7 @@ impl LoggerView {
     }
 
     pub fn draw(&self, frame: &mut Frame, area: &Rect) {
-        let dash_len: usize = 40;
+        let dash_len: usize = 60;
         let dash_line = "-".repeat(dash_len);
 
         let mut log_area = Rect::new(area.x, area.y, dash_len as u16, area.height);

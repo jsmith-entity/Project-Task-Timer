@@ -3,6 +3,7 @@ use std::fs;
 use std::time::{Duration, Instant};
 
 use crate::file_watcher::file_watcher::FileWatcher;
+use crate::task_timer::logger::LogType;
 use crate::task_timer::node::Node;
 use crate::task_timer::window::Window;
 
@@ -47,7 +48,8 @@ impl SessionManager {
         let saves = format!("{}/.project-saves", home_dir);
         if !fs::exists(&saves).unwrap() {
             if let Err(_) = fs::create_dir(&saves) {
-                self.window.log("Save failed. Could not create saves directory");
+                self.window
+                    .log("Save failed. Could not create saves directory", LogType::ERROR);
                 return;
             }
         }
@@ -57,7 +59,8 @@ impl SessionManager {
         let save_dir = format!("{}/{}", saves, dir_name);
         if !fs::exists(&save_dir).unwrap() {
             if let Err(_) = fs::create_dir(&save_dir) {
-                self.window.log("Save failed. Could not create save directory");
+                self.window
+                    .log("Save failed. Could not create save directory", LogType::ERROR);
                 return;
             }
         }
@@ -67,10 +70,10 @@ impl SessionManager {
         if let Ok(save_contents) = fs::read_to_string(save_file) {
             let deserialised: Window = serde_json::from_str(&save_contents).unwrap();
             self.window = deserialised;
-            self.window.log("Retrieved save file.");
+            self.window.log("Retrieved save file.", LogType::INFO);
             self.current_line = self.window.task_list.selected_line;
         } else {
-            self.window.log("Could not retrieve save file");
+            self.window.log("Could not retrieve save file", LogType::ERROR);
         }
     }
 
@@ -127,12 +130,19 @@ impl SessionManager {
             }
 
             if self.last_save_tick.elapsed().as_secs() >= 3600 {
-                let message = match self.save() {
-                    Ok(()) => "Saved".to_string(),
-                    Err(e) => e.to_string(),
+                let log_type: LogType;
+                let message: String = match self.save() {
+                    Ok(()) => {
+                        log_type = LogType::INFO;
+                        "Saved".to_string()
+                    }
+                    Err(e) => {
+                        log_type = LogType::ERROR;
+                        e.to_string()
+                    }
                 };
 
-                self.window.log(&message);
+                self.window.log(&message, log_type);
                 self.last_save_tick = Instant::now();
             }
 

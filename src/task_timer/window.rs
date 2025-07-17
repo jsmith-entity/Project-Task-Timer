@@ -174,8 +174,8 @@ impl Window {
         self.timers.selected_line = 1;
     }
 
-    pub fn log(&mut self, message: &str) {
-        self.logger.log(message, LogType::INFO);
+    pub fn log(&mut self, message: &str, log_type: LogType) {
+        self.logger.log(message, log_type);
         self.log.recent_log = self.logger.recent();
     }
 
@@ -227,6 +227,15 @@ impl Window {
             }
 
             node.completed_tasks[task_idx] = !node.completed_tasks[task_idx];
+
+            let task_name = node.content[task_idx].clone();
+            if node.completed_tasks[task_idx] {
+                let msg = format!("Completed task {task_name}");
+                self.log(&msg, LogType::INFO);
+            } else {
+                let msg = format!("Cancelled completion of task {task_name}");
+                self.log(&msg, LogType::INFO);
+            }
         }
     }
 }

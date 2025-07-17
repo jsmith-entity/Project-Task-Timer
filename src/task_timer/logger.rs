@@ -14,7 +14,7 @@ pub enum LogType {
 
 impl LogType {
     pub fn title(self) -> Line<'static> {
-        return format!("{self}").fg(Color::Blue).into();
+        return format!("{self}").fg(self.color()).into();
     }
 
     fn color(&self) -> Color {
@@ -49,13 +49,13 @@ impl Logger {
             message: message.to_string(),
         });
 
-        if self.log_arr.len() >= 20 {
+        if self.log_arr.len() >= 40 {
             self.log_arr.remove(0);
         }
     }
 
     pub fn recent(&self) -> Vec<LogRecord> {
-        const SIZE: usize = 4;
+        const SIZE: usize = 15;
 
         let recent_log = if self.log_arr.len() >= SIZE {
             &self.log_arr[self.log_arr.len() - SIZE..]
