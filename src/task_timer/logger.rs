@@ -4,7 +4,7 @@ use strum_macros::{Display, EnumIter};
 
 use crate::task_timer::time_stamp::TimeStamp;
 
-#[derive(EnumIter, Display, Clone)]
+#[derive(EnumIter, Display, Clone, Copy, PartialEq)]
 pub enum LogType {
     #[strum(to_string = "INFO")]
     INFO,

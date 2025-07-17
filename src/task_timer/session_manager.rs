@@ -8,7 +8,7 @@ use crate::task_timer::node::Node;
 use crate::task_timer::window::Window;
 
 #[derive(Default, PartialEq, Clone)]
-enum SessionState {
+pub enum SessionState {
     #[default]
     Running,
     AwaitingPrompt,
@@ -19,7 +19,6 @@ pub struct SessionManager {
     file_watcher: Option<FileWatcher>,
     window: Window,
 
-    current_line: u16,
     last_update_tick: Instant,
     last_save_tick: Instant,
 
@@ -32,7 +31,6 @@ impl SessionManager {
             file_watcher: None,
             window: Window::new(),
 
-            current_line: 1,
             last_update_tick: Instant::now(),
             last_save_tick: Instant::now(),
 
@@ -71,7 +69,6 @@ impl SessionManager {
             let deserialised: Window = serde_json::from_str(&save_contents).unwrap();
             self.window = deserialised;
             self.window.log("Retrieved save file.", LogType::INFO);
-            self.current_line = self.window.task_list.selected_line;
         } else {
             self.window.log("Could not retrieve save file", LogType::ERROR);
         }
@@ -178,53 +175,7 @@ impl SessionManager {
     }
 
     fn handle_normal_events(&mut self, key_event: &KeyEvent) -> SessionState {
-        return match key_event.code {
-            KeyCode::Char('j') => {
-                if self.current_line < self.window.content_height {
-                    self.current_line += 1;
-                    self.window.select_line(self.current_line);
-                }
-                SessionState::default()
-            }
-            KeyCode::Char('k') => {
-                if self.current_line > 1 {
-                    // TODO: something looks wrong
-                    self.current_line -= 1;
-                    self.window.select_line(self.current_line)
-                }
-                SessionState::default()
-            }
-            KeyCode::Char('s') => {
-                self.window.timers.try_activate();
-                SessionState::default()
-            }
-            KeyCode::Char(' ') => {
-                self.window.update_completed_task();
-                SessionState::default()
-            }
-            KeyCode::Char('o') => {
-                self.window.toggle_headings(true);
-                self.current_line = 1;
-                SessionState::default()
-            }
-            KeyCode::Char('c') => {
-                self.window.toggle_headings(false);
-                self.current_line = 1;
-                SessionState::default()
-            }
-            KeyCode::Enter => {
-                self.window.task_list.try_collapse();
-                SessionState::default()
-            }
-            KeyCode::Esc | KeyCode::Char('q') => {
-                self.window.enable_popup("Exit Project?");
-                SessionState::AwaitingPrompt
-            }
-            _ => {
-                self.window.handle_events(key_event.code);
-                SessionState::default()
-            }
-        };
+        return self.window.handle_events(key_event.code);
     }
 
     // TODO: change to accomodate for any prompt, not just quit prompt - would include introducing

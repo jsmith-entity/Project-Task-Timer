@@ -17,10 +17,11 @@ use super::{
     logger::{LogType, Logger},
     node::Node,
     popup::Popup,
+    session_manager::SessionState,
     views::{controls::*, logger::*, task_status::*, tasks::*, timers::*},
 };
 
-#[derive(Serialize, Deserialize, EnumIter, Display, Clone, Copy)]
+#[derive(Serialize, Deserialize, EnumIter, Display, Clone, Copy, PartialEq)]
 enum SelectedTab {
     #[strum(to_string = "Main")]
     Tab1,
@@ -41,6 +42,7 @@ pub struct Window {
     pub title: String,
     pub content_height: u16,
     pub content_tree: Node,
+    pub selected_line: u16,
 
     pub timers: TimerView,
     pub task_list: TaskView,
@@ -65,6 +67,8 @@ impl Window {
             title: "???".to_string(),
             content_height: 0,
             content_tree: Node::new(),
+            selected_line: 2,
+
             timers: TimerView::new(),
             task_list: TaskView::new(),
             task_status: TaskStatus::new(),
@@ -141,12 +145,11 @@ impl Window {
         let (task_height, drawn_data) = self.task_list.draw(frame, &areas[1], content);
         let time_height = self.timers.draw(frame, &areas[0], &content, &drawn_data);
         assert!(task_height == time_height);
+        self.content_height = task_height;
 
         let active_times = self.timers.active_time_lines();
         self.task_status
             .render(frame, areas[2], content, &drawn_data, &active_times);
-
-        self.content_height = task_height;
     }
 
     fn draw_control_window(&mut self, frame: &mut Frame, area: Rect) {
@@ -154,24 +157,37 @@ impl Window {
     }
 
     fn draw_log_window(&mut self, frame: &mut Frame, area: Rect) {
-        self.log.draw(frame, &area);
+        self.log.draw(frame, area);
     }
 }
 
 impl Window {
-    pub fn handle_events(&mut self, key_code: KeyCode) {
+    pub fn handle_events(&mut self, key_code: KeyCode) -> SessionState {
+        let old_tab = self.selected_tab;
+
         match key_code {
             KeyCode::Char('1') => self.selected_tab = SelectedTab::Tab1,
             KeyCode::Char('2') => self.selected_tab = SelectedTab::Tab2,
             KeyCode::Char('3') => self.selected_tab = SelectedTab::Tab3,
             _ => {}
+        };
+
+        let changed_tabs = if old_tab == self.selected_tab { false } else { true };
+        if !changed_tabs {
+            let new_state = match self.selected_tab {
+                SelectedTab::Tab1 => self.handle_main_events(key_code),
+                SelectedTab::Tab2 => self.handle_log_events(key_code),
+                _ => SessionState::Running,
+            };
+
+            return new_state;
         }
+
+        return SessionState::Running;
     }
 
     pub fn toggle_headings(&mut self, visible: bool) {
         self.task_list.toggle_nodes(visible);
-        self.task_list.selected_line = 1;
-        self.timers.selected_line = 1;
     }
 
     pub fn log(&mut self, message: &str, log_type: LogType) {
@@ -195,7 +211,7 @@ impl Window {
 
         let lower_bound = area_bounds.y;
         let upper_bound = if self.content_height < win_max_height {
-            self.content_height + 1
+            self.content_height + 2
         } else {
             win_max_height
         };
@@ -204,6 +220,7 @@ impl Window {
         if within_bounds {
             self.task_list.selected_line = line_num;
             self.timers.selected_line = line_num;
+            self.selected_line = line_num;
         }
     }
 
@@ -237,5 +254,49 @@ impl Window {
                 self.log(&msg, LogType::INFO);
             }
         }
+    }
+
+    fn handle_main_events(&mut self, key_code: KeyCode) -> SessionState {
+        let mut new_state = SessionState::Running;
+
+        match key_code {
+            KeyCode::Char('j') => self.select_line(self.selected_line + 1),
+            KeyCode::Char('k') => self.select_line(self.selected_line - 1),
+            KeyCode::Char('s') => self.timers.try_activate(),
+            KeyCode::Char(' ') => self.update_completed_task(),
+            KeyCode::Enter => self.task_list.try_collapse(),
+            KeyCode::Char('o') => {
+                self.toggle_headings(true);
+                self.select_line(2);
+            }
+            KeyCode::Char('c') => {
+                self.toggle_headings(false);
+                self.select_line(2);
+            }
+            KeyCode::Esc | KeyCode::Char('q') => {
+                self.enable_popup("Exit Project?");
+                new_state = SessionState::AwaitingPrompt;
+            }
+            _ => (),
+        };
+
+        return new_state;
+    }
+
+    fn handle_log_events(&mut self, key_code: KeyCode) -> SessionState {
+        let mut new_state = SessionState::Running;
+
+        match key_code {
+            KeyCode::Char('h') => self.log.prev_filter(),
+            KeyCode::Char('l') => self.log.next_filter(),
+            KeyCode::Esc | KeyCode::Char('q') => {
+                self.enable_popup("Exit Project?");
+                new_state = SessionState::AwaitingPrompt;
+            }
+
+            _ => (),
+        }
+
+        return new_state;
     }
 }

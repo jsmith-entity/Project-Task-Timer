@@ -34,7 +34,7 @@ pub struct TaskView {
 impl TaskView {
     pub fn new() -> Self {
         Self {
-            selected_line: 1,
+            selected_line: 2,
 
             content_tree: Node::new(),
             area: Rect::new(0, 0, 0, 0),

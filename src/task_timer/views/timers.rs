@@ -31,7 +31,7 @@ pub struct TimerView {
 impl TimerView {
     pub fn new() -> Self {
         return Self {
-            selected_line: 1,
+            selected_line: 2,
 
             area: Rect::new(0, 0, 0, 0),
             root_node: Node::new(),
