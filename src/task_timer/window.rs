@@ -123,7 +123,8 @@ impl Window {
             self.selected_line,
         );
 
-        self.content_height = self.display_data.len() as u16;
+        // Subtracting 1 as the heading will not take up content height
+        self.content_height = self.display_data.len() as u16 - 1;
 
         match self.selected_tab {
             SelectedTab::Tab1 => frame.render_widget(&self.main_view, inner_area),
@@ -211,13 +212,7 @@ impl Window {
     }
 
     pub fn select_line(&mut self, line_num: u16) {
-        let area_bounds = self.main_view.content_area;
-
-        let lower_bound = area_bounds.y - 1;
-        let upper_bound = self.content_height + 1;
-
-        let within_bounds = line_num >= lower_bound && line_num < upper_bound;
-        if within_bounds {
+        if line_num > 0 && line_num <= self.content_height {
             self.selected_line = line_num;
         }
     }
@@ -229,6 +224,7 @@ impl Window {
             if let Some(new_node) = self.content_tree.get_node(&new_node_path) {
                 self.displayed_node = new_node.clone();
                 self.update_display_data();
+                self.selected_line = 1;
             } else {
                 self.log(
                     "Failed to convert node path to node when entering subheading",

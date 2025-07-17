@@ -47,6 +47,12 @@ impl MainView {
                 node_type: RenderedNodeType::Heading,
                 node_path: node_path.clone(),
             })
+        } else {
+            // root node
+            data.push(RenderedNode {
+                node_type: RenderedNodeType::Heading,
+                node_path: Vec::new(),
+            })
         }
 
         for (idx, _) in node.content.iter().enumerate() {
