@@ -1,33 +1,45 @@
 use ratatui::{
-    prelude::{Buffer, Rect},
+    prelude::{Buffer, Constraint, Layout, Rect, Stylize},
     style::{Color, Style},
     text::Line,
-    widgets::Widget,
+    widgets::{Paragraph, Widget},
 };
+
+use crossterm::event::KeyCode;
 
 use crate::task_timer::{
     node::{Node, NodePath},
+    views::home::navigation_bar::NavigationBar,
     window::{RenderedNode, RenderedNodeType},
 };
 
 #[derive(Default, Clone)]
 pub struct MainView {
-    // timers
-    // tasks
-    // status
+    pub root_node: Node,
     pub content_area: Rect,
-    root_node: Node,
+
+    displayed_node: Node,
     display_data: Vec<RenderedNode>,
+
     selected_line: u16,
+    content_height: u16,
+
+    nav_bar: NavigationBar,
 }
 
 impl MainView {
     pub fn new() -> Self {
         return Self {
-            content_area: Rect::default(),
             root_node: Node::new(),
+            content_area: Rect::default(),
+
+            displayed_node: Node::new(),
             display_data: Vec::new(),
+
             selected_line: 1,
+            content_height: 0,
+
+            nav_bar: NavigationBar::new(),
         };
     }
 
@@ -48,7 +60,7 @@ impl MainView {
                 node_path: node_path.clone(),
             })
         } else {
-            // root node
+            // Root node
             data.push(RenderedNode {
                 node_type: RenderedNodeType::Heading,
                 node_path: Vec::new(),
@@ -78,6 +90,22 @@ impl MainView {
         }
 
         return Ok(data);
+    }
+
+    pub fn update_display_data(&mut self, new_display_node: Node) -> Result<(), String> {
+        self.displayed_node = new_display_node;
+        let res = MainView::collect_display_data(&self.root_node, &self.displayed_node);
+
+        return match res {
+            Ok(new_data) => {
+                self.display_data = new_data;
+
+                // Subtracting 1 as the heading will not take up content height
+                self.content_height = self.display_data.len() as u16 - 1;
+                Ok(())
+            }
+            Err(e) => Err(e),
+        };
     }
 
     pub fn update(
@@ -114,14 +142,86 @@ impl MainView {
 
         return None;
     }
+
+    pub fn handle_events(&mut self, key_code: KeyCode) -> Result<(), String> {
+        return match key_code {
+            KeyCode::Char('j') => {
+                self.select_line(self.selected_line + 1);
+                return Ok(());
+            }
+            KeyCode::Char('k') => {
+                self.select_line(self.selected_line - 1);
+                return Ok(());
+            }
+            // KeyCode::Char('s') => self.timers.try_activate(),
+            // KeyCode::Char(' ') => self.update_completed_task(),
+            KeyCode::Char('b') => self.enter_prev_node(),
+            KeyCode::Enter => return self.enter_next_node(),
+            _ => Ok(()),
+        };
+    }
+
+    fn select_line(&mut self, line_num: u16) {
+        if line_num > 0 && line_num <= self.content_height {
+            self.selected_line = line_num;
+        }
+    }
+
+    fn enter_prev_node(&mut self) -> Result<(), String> {
+        // TODO: update breadcrumb
+
+        let mut curr_node_path = Vec::new();
+        if !Node::find_path(&self.root_node, &self.displayed_node, &mut curr_node_path) {
+            return Err(
+                "Comparing nodes that do not belong on the same tree when collecting display data"
+                    .to_string(),
+            );
+        }
+
+        curr_node_path.pop();
+        if let Some(new_node) = self.root_node.get_node(&curr_node_path) {
+            match self.update_display_data(new_node.clone()) {
+                Ok(()) => self.selected_line = 1,
+                Err(e) => return Err(e),
+            }
+        } else {
+            return Err("Failed to convert node path to node when entering previous heading".to_string());
+        }
+
+        return Ok(());
+    }
+
+    fn enter_next_node(&mut self) -> Result<(), String> {
+        // TODO:update breadcrumb
+
+        if let Some(new_node_path) = self.get_subheading_path(self.selected_line as usize) {
+            if let Some(new_node) = self.root_node.get_node(&new_node_path) {
+                match self.update_display_data(new_node.clone()) {
+                    Ok(()) => self.selected_line = 1,
+                    Err(e) => return Err(e),
+                }
+            } else {
+                return Err("Failed to convert node path to node when entering subheading".to_string());
+            }
+        } else {
+            return Err(
+                "Failed to retrieve subheading from display data when entering subheading".to_string(),
+            );
+        }
+
+        return Ok(());
+    }
 }
 
 impl Widget for &MainView {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        // TODO: render breadcrumbs
-        // TODO: render tabs
-        //
+        use Constraint::{Length, Min};
+
+        let vertical = Layout::vertical([Length(3), Min(0)]);
+        let [navigation_row, content_area] = vertical.areas(area);
         // TODO: get heading in display data (should only ever be 1) display that separately
+
+        self.nav_bar.render(navigation_row, buf);
 
         let mut entry_idx = 0;
         for to_render in self.display_data.iter() {
@@ -145,14 +245,14 @@ impl Widget for &MainView {
                 continue;
             }
 
-            let pos_y = area.y + entry_idx as u16;
-            if pos_y < area.y + area.height {
+            let pos_y = content_area.y + entry_idx as u16;
+            if pos_y < content_area.y + content_area.height {
                 let line = Line::from(content.unwrap()).style(style);
 
                 let display_area = Rect {
-                    x: area.x,
+                    x: content_area.x,
                     y: pos_y,
-                    width: area.width,
+                    width: content_area.width,
                     height: 1,
                 };
 

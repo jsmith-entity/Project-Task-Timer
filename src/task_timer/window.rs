@@ -58,7 +58,6 @@ pub struct Window {
     #[serde(skip)]
     pub display_data: Vec<RenderedNode>,
 
-    displayed_node: Node,
     selected_tab: SelectedTab,
 
     #[serde(skip)]
@@ -79,7 +78,6 @@ impl Window {
             content_height: 0,
             content_tree: Node::new(),
             display_data: Vec::new(),
-            displayed_node: Node::new(),
             selected_line: 1,
 
             main_view: MainView::new(),
@@ -115,16 +113,6 @@ impl Window {
 
         frame.render_widget(&block, body_area);
         let inner_area = block.inner(body_area);
-
-        self.main_view.update(
-            inner_area,
-            self.content_tree.clone(),
-            self.display_data.clone(),
-            self.selected_line,
-        );
-
-        // Subtracting 1 as the heading will not take up content height
-        self.content_height = self.display_data.len() as u16 - 1;
 
         match self.selected_tab {
             SelectedTab::Tab1 => frame.render_widget(&self.main_view, inner_area),
@@ -164,16 +152,10 @@ impl Window {
 impl Window {
     pub fn update_tree(&mut self, new_root: Node) {
         self.content_tree = new_root.clone();
-        self.displayed_node = self.content_tree.clone();
 
-        self.update_display_data();
-    }
-
-    fn update_display_data(&mut self) {
-        let res = MainView::collect_display_data(&self.content_tree, &self.displayed_node);
-        match res {
-            Ok(new_data) => self.display_data = new_data,
-            Err(e) => self.log(&e, LogType::ERROR),
+        self.main_view.root_node = new_root.clone();
+        if let Err(e) = self.main_view.update_display_data(new_root) {
+            self.log(&e, LogType::ERROR);
         }
     }
 
@@ -189,11 +171,15 @@ impl Window {
 
         let changed_tabs = if old_tab == self.selected_tab { false } else { true };
         if !changed_tabs {
-            match self.selected_tab {
-                SelectedTab::Tab1 => self.handle_main_events(key_code),
-                SelectedTab::Tab2 => self.handle_log_events(key_code),
-                _ => (),
+            let res = match self.selected_tab {
+                SelectedTab::Tab1 => self.main_view.handle_events(key_code),
+                //SelectedTab::Tab2 => self.handle_log_events(key_code),
+                _ => Ok(()),
             };
+
+            if let Err(e) = res {
+                self.log(&e, LogType::ERROR);
+            }
         }
     }
 
@@ -209,45 +195,6 @@ impl Window {
 
     pub fn disable_popup(&mut self) {
         self.popup = None;
-    }
-
-    pub fn select_line(&mut self, line_num: u16) {
-        if line_num > 0 && line_num <= self.content_height {
-            self.selected_line = line_num;
-        }
-    }
-
-    fn enter_subheading(&mut self) {
-        // TODO:update breadcrumb
-
-        if let Some(new_node_path) = self.main_view.get_subheading_path(self.selected_line as usize) {
-            if let Some(new_node) = self.content_tree.get_node(&new_node_path) {
-                self.displayed_node = new_node.clone();
-                self.update_display_data();
-                self.selected_line = 1;
-            } else {
-                self.log(
-                    "Failed to convert node path to node when entering subheading",
-                    LogType::ERROR,
-                );
-            }
-        } else {
-            self.log(
-                "Failed to retrieve subheading from display data when entering subheading",
-                LogType::ERROR,
-            );
-        }
-    }
-
-    fn handle_main_events(&mut self, key_code: KeyCode) {
-        match key_code {
-            KeyCode::Char('j') => self.select_line(self.selected_line + 1),
-            KeyCode::Char('k') => self.select_line(self.selected_line - 1),
-            // KeyCode::Char('s') => self.timers.try_activate(),
-            // KeyCode::Char(' ') => self.update_completed_task(),
-            KeyCode::Enter => self.enter_subheading(),
-            _ => (),
-        };
     }
 
     fn handle_log_events(&mut self, key_code: KeyCode) {
