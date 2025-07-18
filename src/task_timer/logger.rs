@@ -1,29 +1,4 @@
-use ratatui::{prelude::Stylize, style::Color, text::Line};
-
-use strum_macros::{Display, EnumIter};
-
-use crate::task_timer::time_stamp::TimeStamp;
-
-#[derive(EnumIter, Display, Clone, Copy, PartialEq)]
-pub enum LogType {
-    #[strum(to_string = "INFO")]
-    INFO,
-    #[strum(to_string = "ERROR")]
-    ERROR,
-}
-
-impl LogType {
-    pub fn title(self) -> Line<'static> {
-        return format!("{self}").fg(self.color()).into();
-    }
-
-    fn color(&self) -> Color {
-        return match self {
-            LogType::INFO => Color::Blue,
-            LogType::ERROR => Color::Red,
-        };
-    }
-}
+use crate::task_timer::{log_type::LogType, time_stamp::TimeStamp};
 
 #[derive(Clone)]
 pub struct LogRecord {

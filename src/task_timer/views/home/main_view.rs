@@ -8,6 +8,7 @@ use ratatui::{
 use crossterm::event::KeyCode;
 
 use crate::task_timer::{
+    log_type::InfoSubType,
     node::{Node, NodePath},
     views::home::navigation_bar::NavigationBar,
 };
@@ -157,21 +158,19 @@ impl MainView {
         return None;
     }
 
-    pub fn handle_events(&mut self, key_code: KeyCode) -> Result<(), String> {
+    pub fn handle_events(&mut self, key_code: KeyCode) -> Result<InfoSubType, String> {
+        match key_code {
+            KeyCode::Char('j') => self.select_line(self.selected_line + 1),
+            KeyCode::Char('k') => self.select_line(self.selected_line - 1),
+            _ => (),
+        }
+
         return match key_code {
-            KeyCode::Char('j') => {
-                self.select_line(self.selected_line + 1);
-                return Ok(());
-            }
-            KeyCode::Char('k') => {
-                self.select_line(self.selected_line - 1);
-                return Ok(());
-            }
             // KeyCode::Char('s') => self.timers.try_activate(),
             // KeyCode::Char(' ') => self.update_completed_task(),
             KeyCode::Char('b') => self.enter_prev_node(),
-            KeyCode::Enter => return self.enter_next_node(),
-            _ => Ok(()),
+            KeyCode::Enter => self.enter_next_node(),
+            _ => Ok(InfoSubType::None),
         };
     }
 
@@ -181,9 +180,7 @@ impl MainView {
         }
     }
 
-    fn enter_prev_node(&mut self) -> Result<(), String> {
-        // TODO: update breadcrumb
-
+    fn enter_prev_node(&mut self) -> Result<InfoSubType, String> {
         let mut curr_node_path = Vec::new();
         if !Node::find_path(&self.root_node, &self.displayed_node, &mut curr_node_path) {
             return Err(
@@ -205,12 +202,10 @@ impl MainView {
             return Err("Failed to convert node path to node when entering previous heading".to_string());
         }
 
-        return Ok(());
+        return Ok(InfoSubType::EnterParent);
     }
 
-    fn enter_next_node(&mut self) -> Result<(), String> {
-        // TODO:update breadcrumb
-
+    fn enter_next_node(&mut self) -> Result<InfoSubType, String> {
         if let Some(new_node_path) = self.get_subheading_path(self.selected_line as usize) {
             if let Some(new_node) = self.root_node.get_node(&new_node_path) {
                 match self.update_display_data(new_node.clone()) {
@@ -229,7 +224,7 @@ impl MainView {
             );
         }
 
-        return Ok(());
+        return Ok(InfoSubType::EnterSubheading);
     }
 
     fn add_breadcrumb(&mut self) {

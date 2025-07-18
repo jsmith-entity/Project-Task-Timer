@@ -9,7 +9,7 @@ use ratatui::{
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter, FromRepr};
 
-use super::super::logger::{LogRecord, LogType};
+use crate::task_timer::{log_type::LogType, logger::LogRecord};
 
 #[derive(Default, EnumIter, Display, Clone, Copy, FromRepr, PartialEq)]
 enum SelectedFilter {
@@ -45,7 +45,7 @@ impl SelectedFilter {
 
         if self == SelectedFilter::ALL {
             includes_filter = true;
-        } else if log_type == LogType::INFO && self == SelectedFilter::INFO {
+        } else if matches!(log_type, LogType::INFO(_)) && self == SelectedFilter::INFO {
             includes_filter = true;
         } else if log_type == LogType::ERROR && self == SelectedFilter::ERROR {
             includes_filter = true;
@@ -96,7 +96,16 @@ impl LoggerView {
             let areas = Layout::vertical([Length(1), Min(0)]).split(log_area);
             let info = Layout::horizontal([Min(0), Length(17)]).split(areas[0]);
 
-            frame.render_widget(Line::from(entry.log_type.clone().title()), info[0]);
+            let log_type = entry.log_type.clone().to_string();
+            let subtype = match entry.log_type {
+                LogType::INFO(subtype) => format!(" - {}", subtype.to_string()),
+                _ => "".to_string(),
+            };
+
+            frame.render_widget(
+                Line::from(format!("{}{}", log_type, subtype)).fg(entry.log_type.color()),
+                info[0],
+            );
             frame.render_widget(Line::from(entry.time_stamp.print()), info[1]);
 
             log_area.y += 2;

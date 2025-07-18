@@ -13,7 +13,8 @@ use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
 
 use crate::task_timer::{
-    logger::{LogType, Logger},
+    log_type::*,
+    logger::Logger,
     node::Node,
     popup::Popup,
     views::{controls::*, home::main_view::*, logger::*},
@@ -149,11 +150,16 @@ impl Window {
             let res = match self.selected_tab {
                 SelectedTab::Tab1 => self.main_view.handle_events(key_code),
                 //SelectedTab::Tab2 => self.handle_log_events(key_code),
-                _ => Ok(()),
+                _ => Ok(InfoSubType::None),
             };
 
-            if let Err(e) = res {
-                self.log(&e, LogType::ERROR);
+            match res {
+                Ok(log_type) => {
+                    if log_type != InfoSubType::None {
+                        self.log(&log_type.message(), LogType::INFO(log_type));
+                    }
+                }
+                Err(e) => self.log(&e, LogType::ERROR),
             }
         }
     }
