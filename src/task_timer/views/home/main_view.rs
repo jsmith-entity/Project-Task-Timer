@@ -114,17 +114,6 @@ impl MainView {
 
                 self.display_data = new_data;
 
-                let mut new_heading_name = None;
-                for entry in &self.display_data {
-                    if let RenderedNodeType::Heading(ref name) = entry.node_type {
-                        new_heading_name = Some(name)
-                    }
-                }
-
-                if new_heading_name.is_some() {
-                    self.nav_bar.heading_name = new_heading_name.unwrap().to_string();
-                }
-
                 // Subtracting 1 as the heading will not take up content height
                 self.content_height = self.display_data.len() as u16 - 1;
                 Ok(())
@@ -206,7 +195,10 @@ impl MainView {
         curr_node_path.pop();
         if let Some(new_node) = self.root_node.get_node(&curr_node_path) {
             match self.update_display_data(new_node.clone()) {
-                Ok(()) => self.selected_line = 1,
+                Ok(()) => {
+                    self.nav_bar.pop_breadcrumb();
+                    self.selected_line = 1;
+                }
                 Err(e) => return Err(e),
             }
         } else {
@@ -222,7 +214,10 @@ impl MainView {
         if let Some(new_node_path) = self.get_subheading_path(self.selected_line as usize) {
             if let Some(new_node) = self.root_node.get_node(&new_node_path) {
                 match self.update_display_data(new_node.clone()) {
-                    Ok(()) => self.selected_line = 1,
+                    Ok(()) => {
+                        self.add_breadcrumb();
+                        self.selected_line = 1;
+                    }
                     Err(e) => return Err(e),
                 }
             } else {
@@ -235,6 +230,20 @@ impl MainView {
         }
 
         return Ok(());
+    }
+
+    fn add_breadcrumb(&mut self) {
+        let mut new_heading_name = None;
+        for entry in &self.display_data {
+            if let RenderedNodeType::Heading(ref name) = entry.node_type {
+                new_heading_name = Some(name)
+            }
+        }
+
+        if new_heading_name.is_some() {
+            let new_breadcrumb = new_heading_name.unwrap().to_string();
+            self.nav_bar.push_breadcrumb(new_breadcrumb);
+        }
     }
 }
 
