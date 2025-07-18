@@ -14,7 +14,7 @@ use strum_macros::{Display, EnumIter};
 
 use crate::task_timer::{
     logger::{LogType, Logger},
-    node::{Node, NodePath},
+    node::Node,
     popup::Popup,
     views::{controls::*, home::main_view::*, logger::*},
 };
@@ -35,28 +35,9 @@ impl SelectedTab {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum RenderedNodeType {
-    Heading,
-    Task(usize),            // Index of the task in node.content
-    ChildHeading(NodePath), // Immediate child heading
-}
-
-#[derive(Clone, Debug)]
-pub struct RenderedNode {
-    pub node_type: RenderedNodeType,
-    pub node_path: NodePath,
-}
-
 #[derive(Serialize, Deserialize)]
 pub struct Window {
     pub title: String,
-    pub content_height: u16,
-    pub content_tree: Node,
-
-    pub selected_line: u16,
-    #[serde(skip)]
-    pub display_data: Vec<RenderedNode>,
 
     selected_tab: SelectedTab,
 
@@ -75,10 +56,6 @@ impl Window {
     pub fn new() -> Self {
         Self {
             title: "???".to_string(),
-            content_height: 0,
-            content_tree: Node::new(),
-            display_data: Vec::new(),
-            selected_line: 1,
 
             main_view: MainView::new(),
 
@@ -151,8 +128,6 @@ impl Window {
 
 impl Window {
     pub fn update_tree(&mut self, new_root: Node) {
-        self.content_tree = new_root.clone();
-
         self.main_view.root_node = new_root.clone();
         if let Err(e) = self.main_view.update_display_data(new_root) {
             self.log(&e, LogType::ERROR);

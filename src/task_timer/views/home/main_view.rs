@@ -1,8 +1,8 @@
 use ratatui::{
-    prelude::{Buffer, Constraint, Layout, Rect, Stylize},
+    prelude::{Buffer, Constraint, Layout, Rect},
     style::{Color, Style},
     text::Line,
-    widgets::{Paragraph, Widget},
+    widgets::Widget,
 };
 
 use crossterm::event::KeyCode;
@@ -10,8 +10,20 @@ use crossterm::event::KeyCode;
 use crate::task_timer::{
     node::{Node, NodePath},
     views::home::navigation_bar::NavigationBar,
-    window::{RenderedNode, RenderedNodeType},
 };
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum RenderedNodeType {
+    Heading(String),
+    Task(usize),            // Index of the task in node.content
+    ChildHeading(NodePath), // Immediate child heading
+}
+
+#[derive(Clone, Debug)]
+pub struct RenderedNode {
+    pub node_type: RenderedNodeType,
+    pub node_path: NodePath,
+}
 
 #[derive(Default, Clone)]
 pub struct MainView {
@@ -56,13 +68,13 @@ impl MainView {
 
         if node.heading.is_some() {
             data.push(RenderedNode {
-                node_type: RenderedNodeType::Heading,
+                node_type: RenderedNodeType::Heading(node.heading.clone().unwrap()),
                 node_path: node_path.clone(),
             })
         } else {
             // Root node
             data.push(RenderedNode {
-                node_type: RenderedNodeType::Heading,
+                node_type: RenderedNodeType::Heading("Root Node Placeholder".to_string()),
                 node_path: Vec::new(),
             })
         }
@@ -98,7 +110,20 @@ impl MainView {
 
         return match res {
             Ok(new_data) => {
+                assert!(new_data.len() > 0);
+
                 self.display_data = new_data;
+
+                let mut new_heading_name = None;
+                for entry in &self.display_data {
+                    if let RenderedNodeType::Heading(ref name) = entry.node_type {
+                        new_heading_name = Some(name)
+                    }
+                }
+
+                if new_heading_name.is_some() {
+                    self.nav_bar.heading_name = new_heading_name.unwrap().to_string();
+                }
 
                 // Subtracting 1 as the heading will not take up content height
                 self.content_height = self.display_data.len() as u16 - 1;
