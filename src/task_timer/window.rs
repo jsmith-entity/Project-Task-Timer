@@ -61,7 +61,8 @@ pub struct Window {
 
     #[serde(skip)]
     main_view: MainView,
-    pub controls: ControlView,
+    #[serde(skip)]
+    pub controls: Controls,
     #[serde(skip)]
     pub logger: LogView,
     #[serde(skip)]
@@ -75,16 +76,12 @@ impl Window {
 
             main_view: MainView::new(),
 
-            controls: ControlView::new(),
+            controls: Controls::new(),
             logger: LogView::new(),
 
             selected_tab: SelectedTab::Tab1,
             popup: None,
         }
-    }
-
-    fn draw_control_window(&self, area: Rect, buf: &mut Buffer) {
-        //self.controls.draw(frame, area);
     }
 }
 
@@ -163,7 +160,7 @@ impl Widget for &Window {
         match self.selected_tab {
             SelectedTab::Tab1 => self.main_view.render(inner_area, buf),
             SelectedTab::Tab2 => self.logger.render(inner_area, buf),
-            SelectedTab::Tab3 => self.draw_control_window(inner_area, buf),
+            SelectedTab::Tab3 => self.controls.render(inner_area, buf),
         }
 
         if self.popup.is_some() {
