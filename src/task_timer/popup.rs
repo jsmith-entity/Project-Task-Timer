@@ -1,10 +1,9 @@
 use ratatui::{
-    Frame,
     layout::Flex,
-    prelude::{Alignment, Constraint, Layout, Rect, Stylize},
+    prelude::{Alignment, Buffer, Constraint, Layout, Rect, Stylize},
     style::Color,
     text::Line,
-    widgets::{Block, Clear, Paragraph},
+    widgets::{Block, Clear, Paragraph, Widget},
 };
 
 #[derive(Clone)]
@@ -17,26 +16,13 @@ impl Popup {
         return Self { message };
     }
 
-    pub fn render(&self, frame: &mut Frame, area: Rect) {
-        use Constraint::{Min, Percentage};
-
-        let prompt_area = Popup::center(area, Percentage(20), Percentage(15));
-        frame.render_widget(Clear, prompt_area);
-
-        let block = Block::bordered();
-        let inner_area = block.inner(prompt_area);
-
-        let vertical = Layout::vertical([Percentage(60), Percentage(40)]).split(inner_area);
-
-        let content = Paragraph::new(self.message.clone()).alignment(Alignment::Center);
-        let content_area = Popup::center(vertical[0], Percentage(50), Min(0));
-        frame.render_widget(block, prompt_area);
-        frame.render_widget(content, content_area);
-
-        self.render_options(frame, vertical[1]);
+    fn center(area: Rect, horizontal: Constraint, vertical: Constraint) -> Rect {
+        let [area] = Layout::horizontal([horizontal]).flex(Flex::Center).areas(area);
+        let [area] = Layout::vertical([vertical]).flex(Flex::Center).areas(area);
+        return area;
     }
 
-    fn render_options(&self, frame: &mut Frame, area: Rect) {
+    fn render_options(&self, area: Rect, buf: &mut Buffer) {
         use Constraint::{Min, Percentage};
 
         let options = vec![Line::from("Y"), Line::from("N")];
@@ -59,19 +45,37 @@ impl Popup {
                 options_area.height,
             );
 
-            let styled_option = option
+            Line::from(option)
                 .bg(Color::Gray)
                 .fg(Color::Black)
-                .alignment(Alignment::Center);
-            frame.render_widget(styled_option, rect);
+                .alignment(Alignment::Center)
+                .render(rect, buf);
 
             current_x += option_width as u16 + spacing as u16;
         }
     }
+}
 
-    fn center(area: Rect, horizontal: Constraint, vertical: Constraint) -> Rect {
-        let [area] = Layout::horizontal([horizontal]).flex(Flex::Center).areas(area);
-        let [area] = Layout::vertical([vertical]).flex(Flex::Center).areas(area);
-        return area;
+impl Widget for &Popup {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        use Constraint::{Min, Percentage};
+
+        let prompt_area = Popup::center(area, Percentage(20), Percentage(15));
+
+        Clear.render(prompt_area, buf);
+
+        let block = Block::bordered();
+        let inner_area = block.inner(prompt_area);
+        block.render(prompt_area, buf);
+
+        let [message_area, options_area] =
+            Layout::vertical([Percentage(60), Percentage(40)]).areas(inner_area);
+
+        let centered_message_area = Popup::center(message_area, Percentage(50), Min(0));
+        Paragraph::new(self.message.clone())
+            .alignment(Alignment::Center)
+            .render(centered_message_area, buf);
+
+        self.render_options(options_area, buf)
     }
 }

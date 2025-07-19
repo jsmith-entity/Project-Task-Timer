@@ -1,11 +1,10 @@
 use crossterm::event::KeyCode;
 use ratatui::{
-    Frame,
-    prelude::{Constraint, Layout, Rect, Stylize},
+    prelude::{Buffer, Constraint, Layout, Rect, Stylize},
     style::Color,
     symbols,
     text::Line,
-    widgets::{Block, Padding, Tabs},
+    widgets::{Block, Padding, Tabs, Widget},
 };
 
 use serde::{Deserialize, Serialize};
@@ -35,6 +34,22 @@ enum SelectedTab {
 impl SelectedTab {
     fn title(self) -> Line<'static> {
         return format!("  {self}  ").fg(Color::Gray).into();
+    }
+}
+
+impl Widget for SelectedTab {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        let titles = SelectedTab::iter().map(SelectedTab::title);
+
+        let selected_tab_idx = self as usize;
+        let highlight_style = (Color::Black, Color::Gray);
+
+        Tabs::new(titles)
+            .highlight_style(highlight_style)
+            .select(selected_tab_idx)
+            .padding("", "")
+            .divider(" ")
+            .render(area, buf);
     }
 }
 
@@ -68,57 +83,8 @@ impl Window {
         }
     }
 
-    pub fn render(&mut self, frame: &mut Frame) {
-        use Constraint::{Length, Min};
-        let area = frame.area();
-
-        let vertical = Layout::vertical([Length(1), Min(0)]);
-        let [header_area, body_area] = vertical.areas(area);
-
-        let horizontal = Layout::horizontal([Min(0), Length(20)]);
-        let [tabs_area, title_area] = horizontal.areas(header_area);
-
-        self.render_tabs(frame, tabs_area);
-
-        let title = self.title.clone().bold();
-        frame.render_widget(title, title_area);
-
-        let block = Block::bordered()
-            .border_set(symbols::border::PROPORTIONAL_TALL)
-            .padding(Padding::horizontal(1))
-            .border_style(Color::Gray);
-
-        frame.render_widget(&block, body_area);
-        let inner_area = block.inner(body_area);
-
-        match self.selected_tab {
-            SelectedTab::Tab1 => frame.render_widget(&self.main_view, inner_area),
-            SelectedTab::Tab2 => frame.render_widget(&self.logger, inner_area),
-            SelectedTab::Tab3 => self.draw_control_window(frame, inner_area),
-        }
-
-        if self.popup.is_some() {
-            self.popup.as_ref().unwrap().render(frame, area);
-        }
-    }
-
-    pub fn render_tabs(&self, frame: &mut Frame, area: Rect) {
-        let titles = SelectedTab::iter().map(SelectedTab::title);
-
-        let selected_tab_idx = self.selected_tab as usize;
-        let highlight_style = (Color::Black, Color::Gray);
-
-        let erm = Tabs::new(titles)
-            .highlight_style(highlight_style)
-            .select(selected_tab_idx)
-            .padding("", "")
-            .divider(" ");
-
-        frame.render_widget(erm, area);
-    }
-
-    fn draw_control_window(&mut self, frame: &mut Frame, area: Rect) {
-        self.controls.draw(frame, area);
+    fn draw_control_window(&self, area: Rect, buf: &mut Buffer) {
+        //self.controls.draw(frame, area);
     }
 }
 
@@ -170,5 +136,38 @@ impl Window {
 
     pub fn disable_popup(&mut self) {
         self.popup = None;
+    }
+}
+
+impl Widget for &Window {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        use Constraint::{Length, Min};
+
+        let vertical = Layout::vertical([Length(1), Min(0)]);
+        let [header_area, body_area] = vertical.areas(area);
+
+        let horizontal = Layout::horizontal([Min(0), Length(20)]);
+        let [tabs_area, title_area] = horizontal.areas(header_area);
+
+        self.selected_tab.render(tabs_area, buf);
+
+        Line::from(self.title.clone()).bold().render(title_area, buf);
+
+        let block = Block::bordered()
+            .border_set(symbols::border::PROPORTIONAL_TALL)
+            .padding(Padding::horizontal(1))
+            .border_style(Color::Gray);
+        let inner_area = block.inner(body_area);
+        block.render(body_area, buf);
+
+        match self.selected_tab {
+            SelectedTab::Tab1 => self.main_view.render(inner_area, buf),
+            SelectedTab::Tab2 => self.logger.render(inner_area, buf),
+            SelectedTab::Tab3 => self.draw_control_window(inner_area, buf),
+        }
+
+        if self.popup.is_some() {
+            self.popup.as_ref().unwrap().render(area, buf);
+        }
     }
 }

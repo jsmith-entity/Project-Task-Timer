@@ -138,7 +138,7 @@ impl SessionManager {
             }
 
             terminal
-                .draw(|frame| self.window.render(frame))
+                .draw(|frame| frame.render_widget(&self.window, frame.area()))
                 .expect("failed to draw frame");
 
             if event::poll(Duration::from_millis(50)).unwrap() {
