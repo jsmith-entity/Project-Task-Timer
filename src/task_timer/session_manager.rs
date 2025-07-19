@@ -3,11 +3,7 @@ use std::fs;
 use std::time::{Duration, Instant};
 
 use crate::file_watcher::file_watcher::FileWatcher;
-use crate::task_timer::{
-    log_type::{InfoSubType, LogType},
-    node::Node,
-    window::Window,
-};
+use crate::task_timer::{node::Node, views::log::log_type::*, window::Window};
 
 #[derive(Default, PartialEq, Clone)]
 pub enum SessionState {

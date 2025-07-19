@@ -13,11 +13,13 @@ use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
 
 use crate::task_timer::{
-    log_type::*,
-    logger::Logger,
     node::Node,
     popup::Popup,
-    views::{controls::*, home::main_view::*, logger::*},
+    views::{
+        controls::*,
+        home::main_view::*,
+        log::{log_type::*, log_view::*},
+    },
 };
 
 #[derive(Serialize, Deserialize, EnumIter, Display, Clone, Copy, PartialEq)]
@@ -44,11 +46,9 @@ pub struct Window {
 
     #[serde(skip)]
     main_view: MainView,
-    #[serde(skip)]
-    logger: Logger,
     pub controls: ControlView,
     #[serde(skip)]
-    pub log: LoggerView,
+    pub logger: LogView,
     #[serde(skip)]
     popup: Option<Popup>,
 }
@@ -60,9 +60,8 @@ impl Window {
 
             main_view: MainView::new(),
 
-            logger: Logger::new(),
             controls: ControlView::new(),
-            log: LoggerView::new(),
+            logger: LogView::new(),
 
             selected_tab: SelectedTab::Tab1,
             popup: None,
@@ -94,7 +93,7 @@ impl Window {
 
         match self.selected_tab {
             SelectedTab::Tab1 => frame.render_widget(&self.main_view, inner_area),
-            SelectedTab::Tab2 => self.draw_log_window(frame, inner_area),
+            SelectedTab::Tab2 => frame.render_widget(&self.logger, inner_area),
             SelectedTab::Tab3 => self.draw_control_window(frame, inner_area),
         }
 
@@ -121,10 +120,6 @@ impl Window {
     fn draw_control_window(&mut self, frame: &mut Frame, area: Rect) {
         self.controls.draw(frame, area);
     }
-
-    fn draw_log_window(&mut self, frame: &mut Frame, area: Rect) {
-        self.log.draw(frame, area);
-    }
 }
 
 impl Window {
@@ -149,7 +144,7 @@ impl Window {
         if !changed_tabs {
             let res = match self.selected_tab {
                 SelectedTab::Tab1 => self.main_view.handle_events(key_code),
-                //SelectedTab::Tab2 => self.handle_log_events(key_code),
+                SelectedTab::Tab2 => self.logger.handle_events(key_code),
                 _ => Ok(InfoSubType::None),
             };
 
@@ -166,7 +161,6 @@ impl Window {
 
     pub fn log(&mut self, message: &str, log_type: LogType) {
         self.logger.log(message, log_type);
-        self.log.recent_log = self.logger.recent();
     }
 
     pub fn enable_popup(&mut self, message: &str) {
@@ -176,13 +170,5 @@ impl Window {
 
     pub fn disable_popup(&mut self) {
         self.popup = None;
-    }
-
-    fn handle_log_events(&mut self, key_code: KeyCode) {
-        match key_code {
-            KeyCode::Char('h') => self.log.prev_filter(),
-            KeyCode::Char('l') => self.log.next_filter(),
-            _ => (),
-        }
     }
 }

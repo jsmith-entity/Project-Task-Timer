@@ -8,9 +8,8 @@ use ratatui::{
 use crossterm::event::KeyCode;
 
 use crate::task_timer::{
-    log_type::InfoSubType,
     node::{Node, NodePath},
-    views::home::navigation_bar::NavigationBar,
+    views::{home::navigation_bar::NavigationBar, log::log_type::*},
 };
 
 #[derive(Clone, Debug, PartialEq)]

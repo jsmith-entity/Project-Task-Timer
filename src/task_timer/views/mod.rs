@@ -1,3 +1,3 @@
 pub mod controls;
 pub mod home;
-pub mod logger;
+pub mod log;
