@@ -5,11 +5,16 @@ use ratatui::{
     widgets::Widget,
 };
 
+use std::time::Duration;
+
 use crossterm::event::KeyCode;
 
 use crate::task_timer::{
     node::Node,
-    views::{home::navigation_bar::NavigationBar, log::log_type::*},
+    views::{
+        home::{navigation_bar::NavigationBar, tasks_overview::TaskOverview},
+        log::log_type::*,
+    },
 };
 
 #[derive(Default, Clone)]
@@ -18,6 +23,7 @@ pub struct MainView {
     pub content_area: Rect,
 
     displayed_node: Node,
+    task_overview: TaskOverview,
 
     selected_line: u16,
     content_height: u16,
@@ -32,6 +38,7 @@ impl MainView {
             content_area: Rect::default(),
 
             displayed_node: Node::new(),
+            task_overview: TaskOverview::default(),
 
             selected_line: 1,
             content_height: 0,
@@ -41,9 +48,24 @@ impl MainView {
     }
 
     pub fn update_display_data(&mut self, new_display_node: Node) {
-        self.content_height = new_display_node.content.len() as u16 + new_display_node.children.len() as u16;
+        let tasks = new_display_node.content.clone();
+        let subheadings: Vec<_> = new_display_node
+            .children
+            .iter()
+            .filter_map(|e| e.heading.clone())
+            .collect();
+        let content_height = tasks.len() as u16 + subheadings.len() as u16;
+        let selected_line = 1;
+
+        self.task_overview = TaskOverview {
+            tasks,
+            subheadings,
+            selected_line,
+            content_height,
+        };
+        self.content_height = content_height;
         self.displayed_node = new_display_node;
-        self.selected_line = 1;
+        self.selected_line = selected_line;
     }
 
     pub fn get_subheading(&self, pos: usize) -> Option<Node> {
@@ -80,6 +102,7 @@ impl MainView {
     fn select_line(&mut self, line_num: u16) {
         if line_num > 0 && line_num <= self.content_height {
             self.selected_line = line_num;
+            self.task_overview.selected_line = line_num;
         }
     }
 
@@ -124,6 +147,16 @@ impl MainView {
     }
 }
 
+impl MainView {
+    fn format_duration(duration: &Duration) -> String {
+        let secs = duration.as_secs();
+        let hours = secs / 3600;
+        let minutes = (secs % 3600) / 60;
+        let seconds = secs % 60;
+        format!("[{:02}:{:02}:{:02}]", hours, minutes, seconds)
+    }
+}
+
 impl Widget for &MainView {
     fn render(self, area: Rect, buf: &mut Buffer) {
         use Constraint::{Length, Min};
@@ -133,45 +166,9 @@ impl Widget for &MainView {
 
         self.nav_bar.render(navigation_row, buf);
 
-        let mut task_offset: u16 = 0;
-        for task in self.displayed_node.content.iter() {
-            let mut style = Style::default();
-            if task_offset + 1 == self.selected_line {
-                style = style.fg(Color::Black).bg(Color::Gray);
-            }
+        let horizontal = Layout::horizontal([Length(12), Min(0)]);
+        let [time_area, task_area] = horizontal.areas(content_area);
 
-            let display_area = Rect {
-                x: content_area.x,
-                y: content_area.y + task_offset,
-                width: content_area.width,
-                height: 1,
-            };
-
-            Line::from(task.clone()).style(style).render(display_area, buf);
-
-            task_offset += 1;
-        }
-
-        for (idx, child) in self.displayed_node.children.iter().enumerate() {
-            let subheading = if child.heading.is_some() {
-                child.heading.clone().unwrap()
-            } else {
-                "Root Node Placeholder".to_string()
-            };
-
-            let mut style = Style::default();
-            if task_offset + idx as u16 + 1 == self.selected_line {
-                style = style.fg(Color::Black).bg(Color::Gray);
-            }
-
-            let display_area = Rect {
-                x: content_area.x,
-                y: content_area.y + task_offset + idx as u16,
-                width: content_area.width,
-                height: 1,
-            };
-
-            Line::from(subheading).style(style).render(display_area, buf);
-        }
+        self.task_overview.render(task_area, buf);
     }
 }
