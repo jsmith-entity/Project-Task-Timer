@@ -88,9 +88,7 @@ impl Window {
 impl Window {
     pub fn update_tree(&mut self, new_root: Node) {
         self.main_view.root_node = new_root.clone();
-        if let Err(e) = self.main_view.update_display_data(new_root) {
-            self.log(&e, LogType::ERROR);
-        }
+        self.main_view.update_display_data(new_root);
     }
 
     pub fn handle_events(&mut self, key_code: KeyCode) {
