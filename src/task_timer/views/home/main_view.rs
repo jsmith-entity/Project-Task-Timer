@@ -17,10 +17,9 @@ use crate::task_timer::{
 pub struct MainView {
     pub root_node: Node,
     pub content_area: Rect,
-
-    displayed_node: Node,
-    task_overview: TaskOverview,
-    timers: Timers,
+    pub displayed_node: Node,
+    pub task_overview: TaskOverview,
+    pub timers: Timers,
 
     content_height: u16,
     selected_line: u16,
@@ -81,8 +80,7 @@ impl MainView {
         }
 
         return match key_code {
-            // TODO: these
-            // KeyCode::Char('s') => self.timers.try_activate(),
+            KeyCode::Char('s') => self.timers.try_activate(),
             // KeyCode::Char(' ') => self.update_completed_task(),
             KeyCode::Char('b') => self.enter_prev_node(),
             KeyCode::Enter => self.enter_next_node(),

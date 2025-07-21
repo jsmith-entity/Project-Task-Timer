@@ -7,7 +7,7 @@ use ratatui::{
 
 use std::time::Duration;
 
-use crate::task_timer::node::Node;
+use crate::task_timer::{node::Node, views::log::log_type::InfoSubType};
 
 #[derive(Default, Clone)]
 pub struct Timers {
@@ -15,6 +15,10 @@ pub struct Timers {
     pub times: Vec<Duration>, // Positions correspond to the nodes content (task) array entries
     pub selected_line: u16,
     pub content_height: u16,
+
+    active_time: Option<u16>,
+    // u16 as its only compared with selected_line
+    subheading_start: u16, // Position in times where subheadings are stored.
 }
 
 impl Timers {
@@ -23,6 +27,8 @@ impl Timers {
         let selected_line = 1;
 
         let mut times = node.content_times.clone();
+        let subheading_start = times.len() as u16;
+
         let mut subheadings_times = Timers::subheading_times(node);
         times.append(&mut subheadings_times);
 
@@ -33,7 +39,28 @@ impl Timers {
             times,
             selected_line,
             content_height,
+            subheading_start,
+            active_time: None,
         };
+    }
+
+    pub fn try_activate(&mut self) -> Result<InfoSubType, String> {
+        let timer_pos = self.selected_line - 1;
+
+        if timer_pos >= self.subheading_start {
+            return Err("Trying to activate a subheading time.".to_string());
+        }
+
+        self.active_time = Some(timer_pos);
+
+        return Ok(InfoSubType::General);
+    }
+
+    pub fn update_time(&mut self) {
+        if self.active_time.is_some() {
+            let idx = self.active_time.unwrap() as usize;
+            self.times[idx] += Duration::from_secs(1);
+        }
     }
 
     fn subheading_times(node: &Node) -> Vec<Duration> {

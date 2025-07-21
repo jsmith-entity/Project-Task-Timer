@@ -121,7 +121,7 @@ impl SessionManager {
             }
 
             if self.last_update_tick.elapsed().as_secs() >= 1 {
-                //self.window.update_time();
+                self.window.update_time();
                 self.last_update_tick = Instant::now();
             }
 

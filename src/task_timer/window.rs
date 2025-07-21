@@ -91,6 +91,10 @@ impl Window {
         self.main_view.update_display_data(new_root);
     }
 
+    pub fn update_time(&mut self) {
+        self.main_view.timers.update_time();
+    }
+
     pub fn handle_events(&mut self, key_code: KeyCode) {
         let old_tab = self.selected_tab;
 
