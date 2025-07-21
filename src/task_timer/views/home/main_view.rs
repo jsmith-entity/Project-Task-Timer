@@ -1,18 +1,14 @@
 use ratatui::{
     prelude::{Buffer, Constraint, Layout, Rect},
-    style::{Color, Style},
-    text::Line,
     widgets::Widget,
 };
-
-use std::time::Duration;
 
 use crossterm::event::KeyCode;
 
 use crate::task_timer::{
     node::Node,
     views::{
-        home::{navigation_bar::NavigationBar, tasks_overview::TaskOverview},
+        home::{navigation_bar::NavigationBar, tasks_overview::TaskOverview, timers::Timers},
         log::log_type::*,
     },
 };
@@ -24,6 +20,7 @@ pub struct MainView {
 
     displayed_node: Node,
     task_overview: TaskOverview,
+    timers: Timers,
 
     selected_line: u16,
     content_height: u16,
@@ -39,6 +36,7 @@ impl MainView {
 
             displayed_node: Node::new(),
             task_overview: TaskOverview::default(),
+            timers: Timers::default(),
 
             selected_line: 1,
             content_height: 0,
@@ -54,8 +52,11 @@ impl MainView {
             .iter()
             .filter_map(|e| e.heading.clone())
             .collect();
+        let times = new_display_node.content_times.clone();
         let content_height = tasks.len() as u16 + subheadings.len() as u16;
         let selected_line = 1;
+
+        assert!(tasks.len() == times.len());
 
         self.task_overview = TaskOverview {
             tasks,
@@ -63,6 +64,13 @@ impl MainView {
             selected_line,
             content_height,
         };
+
+        self.timers = Timers {
+            times,
+            selected_line,
+            content_height,
+        };
+
         self.content_height = content_height;
         self.displayed_node = new_display_node;
         self.selected_line = selected_line;
@@ -103,6 +111,7 @@ impl MainView {
         if line_num > 0 && line_num <= self.content_height {
             self.selected_line = line_num;
             self.task_overview.selected_line = line_num;
+            self.timers.selected_line = line_num;
         }
     }
 
@@ -147,16 +156,6 @@ impl MainView {
     }
 }
 
-impl MainView {
-    fn format_duration(duration: &Duration) -> String {
-        let secs = duration.as_secs();
-        let hours = secs / 3600;
-        let minutes = (secs % 3600) / 60;
-        let seconds = secs % 60;
-        format!("[{:02}:{:02}:{:02}]", hours, minutes, seconds)
-    }
-}
-
 impl Widget for &MainView {
     fn render(self, area: Rect, buf: &mut Buffer) {
         use Constraint::{Length, Min};
@@ -169,6 +168,8 @@ impl Widget for &MainView {
         let horizontal = Layout::horizontal([Length(12), Min(0)]);
         let [time_area, task_area] = horizontal.areas(content_area);
 
+        assert!(self.timers.times.len() == self.task_overview.tasks.len());
+        self.timers.render(time_area, buf);
         self.task_overview.render(task_area, buf);
     }
 }
