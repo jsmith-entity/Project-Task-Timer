@@ -8,6 +8,7 @@ pub struct Node {
     pub content: Vec<String>,
     pub children: Vec<Node>,
 
+    pub total_time: Duration,
     pub content_times: Vec<Duration>,
     pub completed_tasks: Vec<bool>,
 }
@@ -21,6 +22,7 @@ impl Node {
             content: Vec::new(),
             children: Vec::new(),
 
+            total_time: Duration::default(),
             content_times: Vec::new(),
             completed_tasks: Vec::new(),
         }
@@ -32,6 +34,7 @@ impl Node {
             content: Vec::new(),
             children: Vec::new(),
 
+            total_time: Duration::default(),
             content_times: Vec::new(),
             completed_tasks: Vec::new(),
         }

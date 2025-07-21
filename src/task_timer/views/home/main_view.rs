@@ -22,8 +22,8 @@ pub struct MainView {
     task_overview: TaskOverview,
     timers: Timers,
 
-    selected_line: u16,
     content_height: u16,
+    selected_line: u16,
 
     nav_bar: NavigationBar,
 }
@@ -38,42 +38,24 @@ impl MainView {
             task_overview: TaskOverview::default(),
             timers: Timers::default(),
 
-            selected_line: 1,
             content_height: 0,
+            selected_line: 1,
 
             nav_bar: NavigationBar::new(),
         };
     }
 
     pub fn update_display_data(&mut self, new_display_node: Node) {
-        let tasks = new_display_node.content.clone();
-        let subheadings: Vec<_> = new_display_node
-            .children
-            .iter()
-            .filter_map(|e| e.heading.clone())
-            .collect();
-        let times = new_display_node.content_times.clone();
-        let content_height = tasks.len() as u16 + subheadings.len() as u16;
-        let selected_line = 1;
+        self.timers = Timers::new(&new_display_node);
+        self.task_overview = TaskOverview::new(&new_display_node);
 
-        assert!(tasks.len() == times.len());
+        let timers_len = self.timers.times.len();
+        let tasks_len = self.task_overview.tasks.len() + self.task_overview.subheadings.len();
+        assert!(timers_len == tasks_len);
 
-        self.task_overview = TaskOverview {
-            tasks,
-            subheadings,
-            selected_line,
-            content_height,
-        };
-
-        self.timers = Timers {
-            times,
-            selected_line,
-            content_height,
-        };
-
-        self.content_height = content_height;
+        self.content_height = timers_len as u16;
+        self.selected_line = 1;
         self.displayed_node = new_display_node;
-        self.selected_line = selected_line;
     }
 
     pub fn get_subheading(&self, pos: usize) -> Option<Node> {
@@ -99,6 +81,7 @@ impl MainView {
         }
 
         return match key_code {
+            // TODO: these
             // KeyCode::Char('s') => self.timers.try_activate(),
             // KeyCode::Char(' ') => self.update_completed_task(),
             KeyCode::Char('b') => self.enter_prev_node(),
@@ -168,7 +151,6 @@ impl Widget for &MainView {
         let horizontal = Layout::horizontal([Length(12), Min(0)]);
         let [time_area, task_area] = horizontal.areas(content_area);
 
-        assert!(self.timers.times.len() == self.task_overview.tasks.len());
         self.timers.render(time_area, buf);
         self.task_overview.render(task_area, buf);
     }

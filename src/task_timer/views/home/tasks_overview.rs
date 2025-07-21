@@ -5,6 +5,8 @@ use ratatui::{
     widgets::Widget,
 };
 
+use crate::task_timer::node::Node;
+
 #[derive(Default, Clone)]
 pub struct TaskOverview {
     pub tasks: Vec<String>,
@@ -14,6 +16,20 @@ pub struct TaskOverview {
 }
 
 impl TaskOverview {
+    pub fn new(node: &Node) -> Self {
+        let tasks = node.content.clone();
+        let subheadings: Vec<_> = node.children.iter().filter_map(|e| e.heading.clone()).collect();
+        let selected_line = 1;
+        let content_height = tasks.len() as u16 + subheadings.len() as u16;
+
+        return Self {
+            tasks,
+            subheadings,
+            selected_line,
+            content_height,
+        };
+    }
+
     fn render_tasks(&self, area: Rect, buf: &mut Buffer) -> u16 {
         let mut task_offset: u16 = 0;
         for task in self.tasks.iter() {
