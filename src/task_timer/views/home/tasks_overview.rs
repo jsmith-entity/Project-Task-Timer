@@ -5,11 +5,11 @@ use ratatui::{
     widgets::Widget,
 };
 
-use crate::task_timer::node::Node;
+use crate::task_timer::{node::Node, views::log::log_type::InfoSubType};
 
 #[derive(Default, Clone)]
 pub struct TaskOverview {
-    pub tasks: Vec<String>,
+    pub tasks: Vec<(bool, String)>,
     pub subheadings: Vec<String>,
     pub selected_line: u16,
     pub content_height: u16,
@@ -17,7 +17,12 @@ pub struct TaskOverview {
 
 impl TaskOverview {
     pub fn new(node: &Node) -> Self {
-        let tasks = node.content.clone();
+        let tasks: Vec<(bool, String)> = node
+            .completed_tasks
+            .iter()
+            .cloned()
+            .zip(node.content.iter().cloned())
+            .collect();
         let subheadings: Vec<_> = node.children.iter().filter_map(|e| e.heading.clone()).collect();
         let selected_line = 1;
         let content_height = tasks.len() as u16 + subheadings.len() as u16;
@@ -32,10 +37,13 @@ impl TaskOverview {
 
     fn render_tasks(&self, area: Rect, buf: &mut Buffer) -> u16 {
         let mut task_offset: u16 = 0;
-        for task in self.tasks.iter() {
+        for (completed, task) in self.tasks.iter() {
             let mut style = Style::default();
             if task_offset + 1 == self.selected_line {
                 style = style.fg(Color::Black).bg(Color::Gray);
+            }
+            if *completed {
+                style = style.fg(Color::DarkGray);
             }
 
             let display_area = Rect {

@@ -92,7 +92,9 @@ impl Window {
     }
 
     pub fn update_time(&mut self) {
-        self.main_view.update_time();
+        if let Err(e) = self.main_view.update_time() {
+            self.log(&e, LogType::ERROR);
+        }
     }
 
     pub fn handle_events(&mut self, key_code: KeyCode) {

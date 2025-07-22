@@ -82,7 +82,7 @@ impl MainView {
 
         return match key_code {
             KeyCode::Char('s') => self.timers.try_activate(),
-            // KeyCode::Char(' ') => self.update_completed_task(),
+            KeyCode::Char(' ') => self.toggle_task(),
             KeyCode::Char('b') => self.enter_prev_node(),
             KeyCode::Enter => self.enter_next_node(),
             _ => Ok(InfoSubType::None),
@@ -99,7 +99,9 @@ impl MainView {
 
         let mut total_time = Duration::default();
 
-        for (idx, time) in self.timers.task_times.iter().enumerate() {
+        for (idx, entry) in self.timers.task_times.iter().enumerate() {
+            let time = &entry.1;
+
             total_time += time.clone();
             self.displayed_node.content_times[idx] = time.clone();
         }
@@ -111,6 +113,24 @@ impl MainView {
         self.displayed_node.total_time = total_time.clone();
 
         return self.root_node.update_node(node_path, &self.displayed_node);
+    }
+
+    pub fn toggle_task(&mut self) -> Result<InfoSubType, String> {
+        assert!(self.timers.task_times.len() == self.task_overview.tasks.len());
+
+        let idx = self.selected_line as usize - 1;
+        if idx < self.timers.task_times.len() {
+            if self.timers.active_on_line() {
+                self.timers.active_time = None;
+            }
+
+            self.timers.task_times[idx].0 = !self.timers.task_times[idx].0;
+            self.task_overview.tasks[idx].0 = !self.task_overview.tasks[idx].0;
+        } else {
+            return Err("Cannot complete a subheading".to_string());
+        }
+
+        return Ok(InfoSubType::General);
     }
 
     fn select_line(&mut self, line_num: u16) {

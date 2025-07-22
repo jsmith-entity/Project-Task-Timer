@@ -12,13 +12,13 @@ use crate::task_timer::{node::Node, views::log::log_type::InfoSubType};
 #[derive(Default, Clone)]
 pub struct Timers {
     pub total_time: Duration,
-    pub task_times: Vec<Duration>,
+    pub task_times: Vec<(bool, Duration)>,
     pub subheading_times: Vec<Duration>,
     pub selected_line: u16,
     pub content_height: u16,
+    pub active_time: Option<u16>,
 
     task_offset: usize,
-    active_time: Option<u16>,
 }
 
 impl Timers {
@@ -26,7 +26,12 @@ impl Timers {
         let total_time = node.total_time.clone();
         let selected_line = 1;
 
-        let task_times = node.content_times.clone();
+        let task_times: Vec<(bool, Duration)> = node
+            .completed_tasks
+            .iter()
+            .cloned()
+            .zip(node.content_times.iter().cloned())
+            .collect();
         let subheading_times = Timers::subheading_times(node);
 
         let task_offset = task_times.len();
@@ -38,21 +43,9 @@ impl Timers {
             subheading_times,
             selected_line,
             content_height,
-            task_offset,
             active_time: None,
+            task_offset,
         };
-    }
-
-    pub fn try_activate(&mut self) -> Result<InfoSubType, String> {
-        let timer_pos = self.selected_line - 1;
-
-        if timer_pos >= self.task_times.len() as u16 {
-            return Err("Trying to activate a subheading time.".to_string());
-        }
-
-        self.active_time = Some(timer_pos);
-
-        return Ok(InfoSubType::General);
     }
 
     pub fn update_time(&mut self) {
@@ -60,12 +53,42 @@ impl Timers {
             let idx = self.active_time.unwrap() as usize;
 
             if idx < self.task_offset {
-                self.task_times[idx] += Duration::from_secs(1);
+                self.task_times[idx].1 += Duration::from_secs(1);
             } else {
                 let subheading_idx = idx - self.task_offset;
                 self.subheading_times[subheading_idx] += Duration::from_secs(1);
             }
         }
+    }
+
+    pub fn try_activate(&mut self) -> Result<InfoSubType, String> {
+        if let Some(_) = self.active_time {
+            self.active_time = None;
+        } else {
+            let timer_pos = self.selected_line - 1;
+
+            if timer_pos >= self.task_times.len() as u16 {
+                return Err("Cannot start a subheading time".to_string());
+            }
+
+            let completed = self.task_times[timer_pos as usize].0;
+            if !completed {
+                self.active_time = Some(timer_pos);
+            } else {
+                return Err("Cannot start a time on a completed task".to_string());
+            }
+        }
+
+        return Ok(InfoSubType::General);
+    }
+
+    pub fn active_on_line(&self) -> bool {
+        if let Some(line_num) = self.active_time {
+            if line_num == self.selected_line - 1 {
+                return true;
+            }
+        }
+        return false;
     }
 
     fn subheading_times(node: &Node) -> Vec<Duration> {
@@ -99,10 +122,16 @@ impl Timers {
 
 impl Widget for &Timers {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        for (idx, time) in self.task_times.iter().enumerate() {
+        for (idx, entry) in self.task_times.iter().enumerate() {
+            let completed = entry.0;
+            let time = &entry.1;
+
             let mut style = Style::default();
             if idx as u16 + 1 == self.selected_line {
                 style = style.fg(Color::Black).bg(Color::Gray);
+            }
+            if completed {
+                style = style.fg(Color::DarkGray);
             }
 
             let display_area = Rect {
