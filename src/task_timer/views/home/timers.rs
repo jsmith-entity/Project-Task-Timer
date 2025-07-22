@@ -5,11 +5,12 @@ use ratatui::{
     widgets::Widget,
 };
 
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 use crate::task_timer::{node::Node, views::log::log_type::InfoSubType};
 
-#[derive(Default, Clone)]
+#[derive(Deserialize, Serialize, Default, Clone)]
 pub struct Timers {
     pub total_time: Duration,
     pub task_times: Vec<(bool, Duration)>,

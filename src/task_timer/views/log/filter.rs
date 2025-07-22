@@ -5,12 +5,13 @@ use ratatui::{
     widgets::{Tabs, Widget},
 };
 
+use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter, FromRepr};
 
 use crate::task_timer::views::log::log_type::*;
 
-#[derive(Default, EnumIter, Display, Clone, Copy, FromRepr, PartialEq)]
+#[derive(Serialize, Deserialize, Default, EnumIter, Display, Clone, Copy, FromRepr, PartialEq)]
 pub enum Filter {
     #[default]
     #[strum(to_string = "All")]

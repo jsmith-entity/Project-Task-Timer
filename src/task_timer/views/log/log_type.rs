@@ -1,8 +1,10 @@
 use ratatui::style::Color;
 
+use serde::{Deserialize, Serialize};
+
 use strum_macros::{Display, EnumIter};
 
-#[derive(Default, EnumIter, Clone, Copy, PartialEq, Display)]
+#[derive(Serialize, Deserialize, Default, EnumIter, Clone, Copy, PartialEq, Display)]
 pub enum InfoSubType {
     #[default]
     #[strum(to_string = "General")]
@@ -39,7 +41,7 @@ impl InfoSubType {
     }
 }
 
-#[derive(EnumIter, Display, Clone, Copy, PartialEq)]
+#[derive(Serialize, Deserialize, EnumIter, Display, Clone, Copy, PartialEq)]
 pub enum LogType {
     #[strum(to_string = "INFO")]
     INFO(InfoSubType),

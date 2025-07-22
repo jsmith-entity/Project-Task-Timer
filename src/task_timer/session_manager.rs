@@ -65,7 +65,7 @@ impl SessionManager {
 
         if let Ok(save_contents) = fs::read_to_string(save_file) {
             let deserialised: Window = serde_json::from_str(&save_contents).unwrap();
-            self.window = deserialised;
+            self.window.load(deserialised);
             self.window
                 .log("Retrieved save file.", LogType::INFO(InfoSubType::General));
         } else {
@@ -179,8 +179,6 @@ impl SessionManager {
         return new_state;
     }
 
-    // TODO: change to accomodate for any prompt, not just quit prompt - would include introducing
-    // new states
     fn handle_prompt_event(&mut self, key_event: &KeyEvent) -> SessionState {
         return match key_event.code {
             KeyCode::Char('y') | KeyCode::Esc => SessionState::Quitting,

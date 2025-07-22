@@ -5,7 +5,9 @@ use ratatui::{
     widgets::Widget,
 };
 
-#[derive(Default, Clone)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Default, Clone)]
 pub struct NavigationBar {
     back_text: String,
     breadcrumbs: Vec<String>,

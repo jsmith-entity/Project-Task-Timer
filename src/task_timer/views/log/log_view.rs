@@ -5,13 +5,15 @@ use ratatui::{
     widgets::Widget,
 };
 
+use serde::{Deserialize, Serialize};
+
 use crate::task_timer::views::log::{
     filter::Filter,
     log_type::{InfoSubType, LogType},
     time_stamp::TimeStamp,
 };
 
-#[derive(Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct LogEntry {
     pub log_type: LogType,
     pub time_stamp: TimeStamp,
@@ -40,7 +42,7 @@ impl Widget for &LogEntry {
     }
 }
 
-#[derive(Default)]
+#[derive(Serialize, Deserialize, Default)]
 pub struct LogView {
     pub logs: Vec<LogEntry>,
 

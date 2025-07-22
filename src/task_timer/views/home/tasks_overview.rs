@@ -5,9 +5,11 @@ use ratatui::{
     widgets::Widget,
 };
 
+use serde::{Deserialize, Serialize};
+
 use crate::task_timer::node::Node;
 
-#[derive(Default, Clone)]
+#[derive(Deserialize, Serialize, Default, Clone)]
 pub struct TaskOverview {
     pub tasks: Vec<(bool, String)>,
     pub subheadings: Vec<(bool, String)>,

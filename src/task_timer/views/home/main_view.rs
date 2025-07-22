@@ -4,6 +4,7 @@ use ratatui::{
 };
 
 use crossterm::event::KeyCode;
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 use crate::task_timer::{
@@ -14,9 +15,10 @@ use crate::task_timer::{
     },
 };
 
-#[derive(Default, Clone)]
+#[derive(Serialize, Deserialize, Default, Clone)]
 pub struct MainView {
     pub root_node: Node,
+    #[serde(skip)]
     pub content_area: Rect,
     pub displayed_node: Node,
     pub task_overview: TaskOverview,
@@ -42,6 +44,22 @@ impl MainView {
             selected_line: 1,
 
             nav_bar: NavigationBar::new(),
+        };
+    }
+
+    pub fn new_with(main_view: MainView) -> Self {
+        return Self {
+            root_node: main_view.root_node,
+            content_area: Rect::default(),
+
+            displayed_node: main_view.displayed_node,
+            task_overview: main_view.task_overview,
+            timers: main_view.timers,
+
+            content_height: main_view.content_height,
+            selected_line: main_view.selected_line,
+
+            nav_bar: main_view.nav_bar,
         };
     }
 

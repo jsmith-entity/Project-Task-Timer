@@ -59,12 +59,10 @@ pub struct Window {
 
     selected_tab: SelectedTab,
 
-    #[serde(skip)]
     main_view: MainView,
+    logger: LogView,
     #[serde(skip)]
-    pub controls: Controls,
-    #[serde(skip)]
-    pub logger: LogView,
+    controls: Controls,
     #[serde(skip)]
     popup: Option<Popup>,
 }
@@ -82,6 +80,18 @@ impl Window {
             selected_tab: SelectedTab::Tab1,
             popup: None,
         }
+    }
+
+    pub fn load(&mut self, window: Window) {
+        self.title = window.title;
+
+        self.main_view = MainView::new_with(window.main_view);
+
+        self.controls = Controls::new();
+        self.logger = window.logger;
+
+        self.selected_tab = window.selected_tab;
+        self.popup = None;
     }
 }
 
