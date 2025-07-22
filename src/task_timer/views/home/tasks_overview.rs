@@ -10,20 +10,28 @@ use crate::task_timer::{node::Node, views::log::log_type::InfoSubType};
 #[derive(Default, Clone)]
 pub struct TaskOverview {
     pub tasks: Vec<(bool, String)>,
-    pub subheadings: Vec<String>,
+    pub subheadings: Vec<(bool, String)>,
     pub selected_line: u16,
     pub content_height: u16,
 }
 
 impl TaskOverview {
-    pub fn new(node: &Node) -> Self {
+    pub fn new(node: &Node, completed_subheadings: &Vec<bool>) -> Self {
+        assert!(node.children.len() == completed_subheadings.len());
+
         let tasks: Vec<(bool, String)> = node
             .completed_tasks
             .iter()
             .cloned()
             .zip(node.content.iter().cloned())
             .collect();
-        let subheadings: Vec<_> = node.children.iter().filter_map(|e| e.heading.clone()).collect();
+
+        let subheadings: Vec<(bool, String)> = completed_subheadings
+            .iter()
+            .zip(node.children.iter())
+            .filter_map(|(completed, e)| e.heading.clone().map(|h| (*completed, h)))
+            .collect();
+
         let selected_line = 1;
         let content_height = tasks.len() as u16 + subheadings.len() as u16;
 
@@ -62,10 +70,13 @@ impl TaskOverview {
     }
 
     fn render_subheadings(&self, area: Rect, buf: &mut Buffer, task_offset: u16) {
-        for (idx, subheading) in self.subheadings.iter().enumerate() {
+        for (idx, (completed, subheading)) in self.subheadings.iter().enumerate() {
             let mut style = Style::default();
             if task_offset + idx as u16 + 1 == self.selected_line {
                 style = style.fg(Color::Black).bg(Color::Gray);
+            }
+            if *completed {
+                style = style.fg(Color::DarkGray);
             }
 
             let display_area = Rect {

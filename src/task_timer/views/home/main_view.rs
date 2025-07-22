@@ -7,7 +7,7 @@ use crossterm::event::KeyCode;
 use std::time::Duration;
 
 use crate::task_timer::{
-    node::Node,
+    node::{Node, NodePath},
     views::{
         home::{navigation_bar::NavigationBar, tasks_overview::TaskOverview, timers::Timers},
         log::log_type::*,
@@ -47,7 +47,9 @@ impl MainView {
 
     pub fn update_display_data(&mut self, new_display_node: Node) {
         self.timers = Timers::new(&new_display_node);
-        self.task_overview = TaskOverview::new(&new_display_node);
+
+        let completed_subheadings = self.timers.subheading_times.iter().map(|e| e.0).collect();
+        self.task_overview = TaskOverview::new(&new_display_node, &completed_subheadings);
 
         let timers_len = self.timers.task_times.len() + self.timers.subheading_times.len();
         let tasks_len = self.task_overview.tasks.len() + self.task_overview.subheadings.len();
@@ -112,7 +114,7 @@ impl MainView {
 
         self.displayed_node.total_time = total_time.clone();
 
-        return self.root_node.update_node(node_path, &self.displayed_node);
+        return self.root_node.update_node(&node_path, &self.displayed_node);
     }
 
     pub fn toggle_task(&mut self) -> Result<InfoSubType, String> {
@@ -150,6 +152,11 @@ impl MainView {
             );
         }
 
+        self.displayed_node.completed_tasks = self.task_overview.tasks.iter().map(|e| e.0).collect();
+        if let Err(e) = self.root_node.update_node(&curr_node_path, &self.displayed_node) {
+            return Err(e);
+        }
+
         curr_node_path.pop();
         if let Some(new_node) = self.root_node.get_node(&curr_node_path) {
             self.update_display_data(new_node.clone());
@@ -162,6 +169,19 @@ impl MainView {
     }
 
     fn enter_next_node(&mut self) -> Result<InfoSubType, String> {
+        let mut curr_node_path = Vec::new();
+        if !Node::find_path(&self.root_node, &self.displayed_node, &mut curr_node_path) {
+            return Err(
+                "Comparing nodes that do not belong on the same tree when collecting display data"
+                    .to_string(),
+            );
+        }
+
+        self.displayed_node.completed_tasks = self.task_overview.tasks.iter().map(|e| e.0).collect();
+        if let Err(e) = self.root_node.update_node(&curr_node_path, &self.displayed_node) {
+            return Err(e);
+        }
+
         if let Some(new_node) = self.get_subheading(self.selected_line as usize) {
             self.update_display_data(new_node.clone());
             self.add_breadcrumb();

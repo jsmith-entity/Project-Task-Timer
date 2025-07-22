@@ -88,11 +88,12 @@ impl Node {
         return Some(current);
     }
 
-    pub fn update_node(&mut self, modify_path: NodePath, contents: &Node) -> Result<(), String> {
+    pub fn update_node(&mut self, modify_path: &NodePath, contents: &Node) -> Result<(), String> {
         if let Some(found_node) = self.get_node_mut(&modify_path) {
             assert!(found_node.content_times.len() == contents.content_times.len());
             found_node.content_times = contents.content_times.clone();
             found_node.total_time = contents.total_time.clone();
+            found_node.completed_tasks = contents.completed_tasks.clone();
         } else {
             return Err("Node path not present on the given root node".to_string());
         }

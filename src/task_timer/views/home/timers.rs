@@ -13,7 +13,7 @@ use crate::task_timer::{node::Node, views::log::log_type::InfoSubType};
 pub struct Timers {
     pub total_time: Duration,
     pub task_times: Vec<(bool, Duration)>,
-    pub subheading_times: Vec<Duration>,
+    pub subheading_times: Vec<(bool, Duration)>,
     pub selected_line: u16,
     pub content_height: u16,
     pub active_time: Option<u16>,
@@ -56,7 +56,7 @@ impl Timers {
                 self.task_times[idx].1 += Duration::from_secs(1);
             } else {
                 let subheading_idx = idx - self.task_offset;
-                self.subheading_times[subheading_idx] += Duration::from_secs(1);
+                self.subheading_times[subheading_idx].1 += Duration::from_secs(1);
             }
         }
     }
@@ -91,24 +91,29 @@ impl Timers {
         return false;
     }
 
-    fn subheading_times(node: &Node) -> Vec<Duration> {
-        let mut times: Vec<Duration> = Vec::new();
+    fn subheading_times(node: &Node) -> Vec<(bool, Duration)> {
+        let mut times: Vec<(bool, Duration)> = Vec::new();
         for subheading in node.children.iter() {
-            let total_time = Timers::total_time(&subheading);
-            times.push(total_time);
+            let full_entry = Timers::extract_entry(&subheading);
+
+            times.push(full_entry);
         }
 
         return times;
     }
 
-    fn total_time(node: &Node) -> Duration {
-        let task_time: Duration = node.content_times.iter().sum();
-        let mut subheading_time = Duration::default();
+    fn extract_entry(node: &Node) -> (bool, Duration) {
+        let completed_node = node.completed_tasks.iter().all(|&x| x);
+        let mut completed_subheadings = true;
+
+        let mut entry_time: Duration = node.content_times.iter().sum();
         for subheading in node.children.iter() {
-            subheading_time += Timers::total_time(subheading);
+            let (completed, duration) = Timers::extract_entry(subheading);
+            entry_time += duration;
+            completed_subheadings &= completed;
         }
 
-        return task_time + subheading_time;
+        return (completed_node && completed_subheadings, entry_time);
     }
 
     fn format_duration(duration: &Duration) -> String {
@@ -146,10 +151,13 @@ impl Widget for &Timers {
                 .render(display_area, buf);
         }
 
-        for (idx, time) in self.subheading_times.iter().enumerate() {
+        for (idx, &(completed, time)) in self.subheading_times.iter().enumerate() {
             let mut style = Style::default();
             if self.task_offset as u16 + idx as u16 + 1 == self.selected_line {
                 style = style.fg(Color::Black).bg(Color::Gray);
+            }
+            if completed {
+                style = style.fg(Color::DarkGray);
             }
 
             let display_area = Rect {
@@ -159,7 +167,7 @@ impl Widget for &Timers {
                 height: 1,
             };
 
-            Line::from(Timers::format_duration(time))
+            Line::from(Timers::format_duration(&time))
                 .style(style)
                 .render(display_area, buf);
         }
