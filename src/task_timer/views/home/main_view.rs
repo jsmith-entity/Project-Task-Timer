@@ -4,6 +4,7 @@ use ratatui::{
 };
 
 use crossterm::event::KeyCode;
+use std::time::Duration;
 
 use crate::task_timer::{
     node::Node,
@@ -48,7 +49,7 @@ impl MainView {
         self.timers = Timers::new(&new_display_node);
         self.task_overview = TaskOverview::new(&new_display_node);
 
-        let timers_len = self.timers.times.len();
+        let timers_len = self.timers.task_times.len() + self.timers.subheading_times.len();
         let tasks_len = self.task_overview.tasks.len() + self.task_overview.subheadings.len();
         assert!(timers_len == tasks_len);
 
@@ -86,6 +87,30 @@ impl MainView {
             KeyCode::Enter => self.enter_next_node(),
             _ => Ok(InfoSubType::None),
         };
+    }
+
+    pub fn update_time(&mut self) -> Result<(), String> {
+        self.timers.update_time();
+
+        let mut node_path = Vec::new();
+        if !Node::find_path(&self.root_node, &self.displayed_node, &mut node_path) {
+            return Err("Could not find node path of displayed node".to_string());
+        }
+
+        let mut total_time = Duration::default();
+
+        for (idx, time) in self.timers.task_times.iter().enumerate() {
+            total_time += time.clone();
+            self.displayed_node.content_times[idx] = time.clone();
+        }
+
+        for subheading in self.displayed_node.children.iter() {
+            total_time += subheading.total_time;
+        }
+
+        self.displayed_node.total_time = total_time.clone();
+
+        return self.root_node.update_node(node_path, &self.displayed_node);
     }
 
     fn select_line(&mut self, line_num: u16) {

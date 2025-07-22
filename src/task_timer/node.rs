@@ -88,6 +88,18 @@ impl Node {
         return Some(current);
     }
 
+    pub fn update_node(&mut self, modify_path: NodePath, contents: &Node) -> Result<(), String> {
+        if let Some(found_node) = self.get_node_mut(&modify_path) {
+            assert!(found_node.content_times.len() == contents.content_times.len());
+            found_node.content_times = contents.content_times.clone();
+            found_node.total_time = contents.total_time.clone();
+        } else {
+            return Err("Node path not present on the given root node".to_string());
+        }
+
+        return Ok(());
+    }
+
     fn convert_line(line: &str, root: &mut Node, indices: &mut Vec<usize>) {
         let depth = line.chars().filter(|&c| c == '#').count();
 

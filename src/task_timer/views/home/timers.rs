@@ -12,13 +12,13 @@ use crate::task_timer::{node::Node, views::log::log_type::InfoSubType};
 #[derive(Default, Clone)]
 pub struct Timers {
     pub total_time: Duration,
-    pub times: Vec<Duration>, // Positions correspond to the nodes content (task) array entries
+    pub task_times: Vec<Duration>,
+    pub subheading_times: Vec<Duration>,
     pub selected_line: u16,
     pub content_height: u16,
 
+    task_offset: usize,
     active_time: Option<u16>,
-    // u16 as its only compared with selected_line
-    subheading_start: u16, // Position in times where subheadings are stored.
 }
 
 impl Timers {
@@ -26,20 +26,19 @@ impl Timers {
         let total_time = node.total_time.clone();
         let selected_line = 1;
 
-        let mut times = node.content_times.clone();
-        let subheading_start = times.len() as u16;
+        let task_times = node.content_times.clone();
+        let subheading_times = Timers::subheading_times(node);
 
-        let mut subheadings_times = Timers::subheading_times(node);
-        times.append(&mut subheadings_times);
-
-        let content_height = times.len() as u16;
+        let task_offset = task_times.len();
+        let content_height = task_offset as u16 + subheading_times.len() as u16;
 
         return Self {
             total_time,
-            times,
+            task_times,
+            subheading_times,
             selected_line,
             content_height,
-            subheading_start,
+            task_offset,
             active_time: None,
         };
     }
@@ -47,7 +46,7 @@ impl Timers {
     pub fn try_activate(&mut self) -> Result<InfoSubType, String> {
         let timer_pos = self.selected_line - 1;
 
-        if timer_pos >= self.subheading_start {
+        if timer_pos >= self.task_times.len() as u16 {
             return Err("Trying to activate a subheading time.".to_string());
         }
 
@@ -59,7 +58,13 @@ impl Timers {
     pub fn update_time(&mut self) {
         if self.active_time.is_some() {
             let idx = self.active_time.unwrap() as usize;
-            self.times[idx] += Duration::from_secs(1);
+
+            if idx < self.task_offset {
+                self.task_times[idx] += Duration::from_secs(1);
+            } else {
+                let subheading_idx = idx - self.task_offset;
+                self.subheading_times[subheading_idx] += Duration::from_secs(1);
+            }
         }
     }
 
@@ -94,7 +99,7 @@ impl Timers {
 
 impl Widget for &Timers {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        for (idx, time) in self.times.iter().enumerate() {
+        for (idx, time) in self.task_times.iter().enumerate() {
             let mut style = Style::default();
             if idx as u16 + 1 == self.selected_line {
                 style = style.fg(Color::Black).bg(Color::Gray);
@@ -103,6 +108,24 @@ impl Widget for &Timers {
             let display_area = Rect {
                 x: area.x,
                 y: area.y + idx as u16,
+                width: area.width,
+                height: 1,
+            };
+
+            Line::from(Timers::format_duration(time))
+                .style(style)
+                .render(display_area, buf);
+        }
+
+        for (idx, time) in self.subheading_times.iter().enumerate() {
+            let mut style = Style::default();
+            if self.task_offset as u16 + idx as u16 + 1 == self.selected_line {
+                style = style.fg(Color::Black).bg(Color::Gray);
+            }
+
+            let display_area = Rect {
+                x: area.x,
+                y: area.y + self.task_offset as u16 + idx as u16,
                 width: area.width,
                 height: 1,
             };

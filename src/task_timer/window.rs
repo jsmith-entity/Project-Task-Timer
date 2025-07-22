@@ -92,7 +92,7 @@ impl Window {
     }
 
     pub fn update_time(&mut self) {
-        self.main_view.timers.update_time();
+        self.main_view.update_time();
     }
 
     pub fn handle_events(&mut self, key_code: KeyCode) {
