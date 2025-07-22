@@ -161,13 +161,10 @@ impl Widget for &LogView {
     fn render(self, area: Rect, buf: &mut Buffer) {
         use Constraint::{Length, Min};
 
-        let vertical = Layout::vertical([Length(2), Min(0)]);
-        let [header_area, body_area] = vertical.areas(area);
+        let vertical = Layout::vertical([Length(2), Min(0), Length(1)]);
+        let [header_area, body_area, page_area] = vertical.areas(area);
 
-        let horizontal = Layout::horizontal([Min(0), Length(15)]);
-        let [filter_area, page_area] = horizontal.areas(header_area);
-
-        self.selected_filter.render(filter_area, buf);
+        self.selected_filter.render(header_area, buf);
         self.render_page_status(page_area, buf);
         self.render_log_page(body_area, buf);
     }
