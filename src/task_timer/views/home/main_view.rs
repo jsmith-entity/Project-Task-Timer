@@ -75,7 +75,7 @@ impl MainView {
         }
     }
 
-    pub fn handle_events(&mut self, key_code: KeyCode) -> Result<InfoSubType, String> {
+    pub fn handle_events(&mut self, key_code: KeyCode) -> Result<(InfoSubType, String), String> {
         match key_code {
             KeyCode::Char('j') => self.select_line(self.selected_line + 1),
             KeyCode::Char('k') => self.select_line(self.selected_line - 1),
@@ -87,7 +87,7 @@ impl MainView {
             KeyCode::Char(' ') => self.toggle_task(),
             KeyCode::Char('b') => self.enter_prev_node(),
             KeyCode::Enter => self.enter_next_node(),
-            _ => Ok(InfoSubType::None),
+            _ => Ok((InfoSubType::None, "erm".to_string())),
         };
     }
 
@@ -117,13 +117,22 @@ impl MainView {
         return self.root_node.update_node(&node_path, &self.displayed_node);
     }
 
-    pub fn toggle_task(&mut self) -> Result<InfoSubType, String> {
+    pub fn toggle_task(&mut self) -> Result<(InfoSubType, String), String> {
         assert!(self.timers.task_times.len() == self.task_overview.tasks.len());
+
+        let info_type: InfoSubType;
 
         let idx = self.selected_line as usize - 1;
         if idx < self.timers.task_times.len() {
             if self.timers.active_on_line() {
                 self.timers.active_time = None;
+            }
+
+            assert!(self.timers.task_times[idx].0 == self.task_overview.tasks[idx].0);
+            if self.timers.task_times[idx].0 {
+                info_type = InfoSubType::UncompleteTask;
+            } else {
+                info_type = InfoSubType::CompleteTask;
             }
 
             self.timers.task_times[idx].0 = !self.timers.task_times[idx].0;
@@ -132,7 +141,8 @@ impl MainView {
             return Err("Cannot complete a subheading".to_string());
         }
 
-        return Ok(InfoSubType::General);
+        let task_name = self.task_overview.tasks[idx].1.clone();
+        return Ok((info_type, task_name));
     }
 
     fn select_line(&mut self, line_num: u16) {
@@ -143,7 +153,7 @@ impl MainView {
         }
     }
 
-    fn enter_prev_node(&mut self) -> Result<InfoSubType, String> {
+    fn enter_prev_node(&mut self) -> Result<(InfoSubType, String), String> {
         let mut curr_node_path = match Node::find_path(&self.root_node, &self.displayed_node) {
             Ok(path) => path,
             Err(e) => return Err(e),
@@ -162,10 +172,15 @@ impl MainView {
             return Err("Failed to convert node path to node when entering previous heading".to_string());
         }
 
-        return Ok(InfoSubType::EnterParent);
+        let heading_name = self
+            .displayed_node
+            .heading
+            .clone()
+            .unwrap_or_else(|| "Root Node".to_string());
+        return Ok((InfoSubType::EnterParent, heading_name));
     }
 
-    fn enter_next_node(&mut self) -> Result<InfoSubType, String> {
+    fn enter_next_node(&mut self) -> Result<(InfoSubType, String), String> {
         let node_path = match Node::find_path(&self.root_node, &self.displayed_node) {
             Ok(path) => path,
             Err(e) => return Err(e),
@@ -183,7 +198,12 @@ impl MainView {
             return Err("No subheading found on selected line".to_string());
         }
 
-        return Ok(InfoSubType::EnterSubheading);
+        let heading_name = self
+            .displayed_node
+            .heading
+            .clone()
+            .unwrap_or_else(|| "Root Node".to_string());
+        return Ok((InfoSubType::EnterSubheading, heading_name));
     }
 
     fn add_breadcrumb(&mut self) {

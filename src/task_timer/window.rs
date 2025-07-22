@@ -112,13 +112,13 @@ impl Window {
             let res = match self.selected_tab {
                 SelectedTab::Tab1 => self.main_view.handle_events(key_code),
                 SelectedTab::Tab2 => self.logger.handle_events(key_code),
-                _ => Ok(InfoSubType::None),
+                _ => Ok((InfoSubType::None, "erm".to_string())),
             };
 
             match res {
-                Ok(log_type) => {
+                Ok((log_type, info)) => {
                     if log_type != InfoSubType::None {
-                        self.log(&log_type.message(), LogType::INFO(log_type));
+                        self.log(&log_type.message(info), LogType::INFO(log_type));
                     }
                 }
                 Err(e) => self.log(&e, LogType::ERROR),

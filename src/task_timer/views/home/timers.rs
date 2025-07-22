@@ -61,10 +61,15 @@ impl Timers {
         }
     }
 
-    pub fn try_activate(&mut self) -> Result<InfoSubType, String> {
+    pub fn try_activate(&mut self) -> Result<(InfoSubType, String), String> {
+        let info_type: InfoSubType;
+
         if let Some(_) = self.active_time {
+            info_type = InfoSubType::StopTimer;
             self.active_time = None;
         } else {
+            info_type = InfoSubType::StartTimer;
+
             let timer_pos = self.selected_line - 1;
 
             if timer_pos >= self.task_times.len() as u16 {
@@ -79,7 +84,7 @@ impl Timers {
             }
         }
 
-        return Ok(InfoSubType::General);
+        return Ok((info_type, self.selected_line.to_string()));
     }
 
     pub fn active_on_line(&self) -> bool {

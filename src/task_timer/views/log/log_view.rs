@@ -21,7 +21,7 @@ pub struct LogEntry {
 impl Widget for &LogEntry {
     fn render(self, area: Rect, buf: &mut Buffer) {
         use Constraint::{Length, Min};
-        let [info, _, content] = Layout::vertical([Length(1), Length(1), Min(0)]).areas(area);
+        let [info, content] = Layout::vertical([Length(1), Min(0)]).areas(area);
         let [type_area, subtype_area] = Layout::horizontal([Min(0), Length(17)]).areas(info);
 
         let subtype = match self.log_type {
@@ -88,14 +88,14 @@ impl LogView {
         return recent_log.to_vec();
     }
 
-    pub fn handle_events(&mut self, key_code: KeyCode) -> Result<InfoSubType, String> {
+    pub fn handle_events(&mut self, key_code: KeyCode) -> Result<(InfoSubType, String), String> {
         match key_code {
             KeyCode::Char('h') => self.prev_filter(),
             KeyCode::Char('l') => self.next_filter(),
             _ => (),
         }
 
-        return Ok(InfoSubType::None);
+        return Ok((InfoSubType::None, "erm".to_string()));
     }
 }
 
@@ -107,14 +107,12 @@ impl Widget for &LogView {
         let [header_area, body_area] = vertical.areas(area);
 
         self.selected_filter.render(header_area, buf);
-        //self.render_tabs(frame, header_area);
 
-        let dash_len: usize = 60;
-        let dash_line = "-".repeat(dash_len);
+        let dash_line = "-".repeat(area.width as usize);
 
         Line::from(dash_line.clone()).render(body_area, buf);
 
-        const ENTRY_HEIGHT: u16 = 3;
+        const ENTRY_HEIGHT: u16 = 2;
         let mut total_height = 1;
         for entry in self.logs.iter().rev() {
             if !self.selected_filter.includes(entry.log_type) {
@@ -128,6 +126,7 @@ impl Widget for &LogView {
                 height: ENTRY_HEIGHT,
             };
 
+            entry.render(entry_area, buf);
             total_height += entry_area.height;
 
             let separator_area = Rect {
@@ -139,7 +138,6 @@ impl Widget for &LogView {
 
             total_height += separator_area.height;
 
-            entry.render(entry_area, buf);
             Line::from(dash_line.clone()).render(separator_area, buf);
         }
     }
