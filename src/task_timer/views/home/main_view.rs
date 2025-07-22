@@ -7,7 +7,7 @@ use crossterm::event::KeyCode;
 use std::time::Duration;
 
 use crate::task_timer::{
-    node::{Node, NodePath},
+    node::Node,
     views::{
         home::{navigation_bar::NavigationBar, tasks_overview::TaskOverview, timers::Timers},
         log::log_type::*,
@@ -94,10 +94,10 @@ impl MainView {
     pub fn update_time(&mut self) -> Result<(), String> {
         self.timers.update_time();
 
-        let mut node_path = Vec::new();
-        if !Node::find_path(&self.root_node, &self.displayed_node, &mut node_path) {
-            return Err("Could not find node path of displayed node".to_string());
-        }
+        let node_path = match Node::find_path(&self.root_node, &self.displayed_node) {
+            Ok(path) => path,
+            Err(e) => return Err(e),
+        };
 
         let mut total_time = Duration::default();
 
@@ -144,13 +144,10 @@ impl MainView {
     }
 
     fn enter_prev_node(&mut self) -> Result<InfoSubType, String> {
-        let mut curr_node_path = Vec::new();
-        if !Node::find_path(&self.root_node, &self.displayed_node, &mut curr_node_path) {
-            return Err(
-                "Comparing nodes that do not belong on the same tree when collecting display data"
-                    .to_string(),
-            );
-        }
+        let mut curr_node_path = match Node::find_path(&self.root_node, &self.displayed_node) {
+            Ok(path) => path,
+            Err(e) => return Err(e),
+        };
 
         self.displayed_node.completed_tasks = self.task_overview.tasks.iter().map(|e| e.0).collect();
         if let Err(e) = self.root_node.update_node(&curr_node_path, &self.displayed_node) {
@@ -169,16 +166,13 @@ impl MainView {
     }
 
     fn enter_next_node(&mut self) -> Result<InfoSubType, String> {
-        let mut curr_node_path = Vec::new();
-        if !Node::find_path(&self.root_node, &self.displayed_node, &mut curr_node_path) {
-            return Err(
-                "Comparing nodes that do not belong on the same tree when collecting display data"
-                    .to_string(),
-            );
-        }
+        let node_path = match Node::find_path(&self.root_node, &self.displayed_node) {
+            Ok(path) => path,
+            Err(e) => return Err(e),
+        };
 
         self.displayed_node.completed_tasks = self.task_overview.tasks.iter().map(|e| e.0).collect();
-        if let Err(e) = self.root_node.update_node(&curr_node_path, &self.displayed_node) {
+        if let Err(e) = self.root_node.update_node(&node_path, &self.displayed_node) {
             return Err(e);
         }
 

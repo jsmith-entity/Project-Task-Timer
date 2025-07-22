@@ -5,7 +5,7 @@ use ratatui::{
     widgets::Widget,
 };
 
-use crate::task_timer::{node::Node, views::log::log_type::InfoSubType};
+use crate::task_timer::node::Node;
 
 #[derive(Default, Clone)]
 pub struct TaskOverview {

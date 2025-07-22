@@ -53,21 +53,33 @@ impl Node {
         return root;
     }
 
-    pub fn find_path(current: &Node, target: &Node, path: &mut NodePath) -> bool {
-        if current == target {
-            return true;
-        }
-
-        for (i, child) in current.children.iter().enumerate() {
-            path.push(i);
-            if Node::find_path(child, target, path) {
+    pub fn find_path(current: &Node, target: &Node) -> Result<NodePath, String> {
+        fn find_inner_path(current: &Node, target: &Node, path: &mut NodePath) -> bool {
+            if current == target {
                 return true;
             }
 
-            path.pop();
+            for (i, child) in current.children.iter().enumerate() {
+                path.push(i);
+                if find_inner_path(child, target, path) {
+                    return true;
+                }
+
+                path.pop();
+            }
+
+            return false;
         }
 
-        return false;
+        let mut path = Vec::new();
+        if find_inner_path(current, target, &mut path) {
+            return Ok(path);
+        } else {
+            return Err(
+                "Comparing nodes that do not belong on the same tree when collecting display data"
+                    .to_string(),
+            );
+        }
     }
 
     pub fn get_node_mut(&mut self, path: &NodePath) -> Option<&mut Node> {
