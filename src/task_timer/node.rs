@@ -131,12 +131,20 @@ impl Node {
                 indices.push(parent_node.children.len() - 1);
             }
         } else {
-            let content = line.to_string();
+            let prefixes = vec!["- [ ]", "- [x]"];
+            if let Some(content) = line.strip_prefix(prefixes[0]) {
+                let current_node = Node::find_heading_level(root, indices);
+                current_node.content.push(content.trim().to_string());
+                current_node.content_times.push(Duration::from_secs(0));
+                current_node.completed_tasks.push(false);
+            }
 
-            let current_node = Node::find_heading_level(root, indices);
-            current_node.content.push(content);
-            current_node.content_times.push(Duration::from_secs(0));
-            current_node.completed_tasks.push(false);
+            if let Some(content) = line.strip_prefix(prefixes[1]) {
+                let current_node = Node::find_heading_level(root, indices);
+                current_node.content.push(content.trim().to_string());
+                current_node.content_times.push(Duration::from_secs(0));
+                current_node.completed_tasks.push(true);
+            }
         }
     }
 
