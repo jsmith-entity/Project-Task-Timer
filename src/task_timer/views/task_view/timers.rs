@@ -8,7 +8,7 @@ use ratatui::{
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-use crate::task_timer::{node::Node, views::log::log_type::InfoSubType};
+use crate::task_timer::{log_type::InfoSubType, node::Node};
 
 #[derive(Deserialize, Serialize, Default, Clone)]
 pub struct Timers {
@@ -48,44 +48,9 @@ impl Timers {
         };
     }
 
-    pub fn update_time(&mut self) {
-        if self.active_time.is_some() {
-            let idx = self.active_time.unwrap() as usize;
 
-            if idx < self.task_offset {
-                self.lines[idx].1 += Duration::from_secs(1);
-            } else {
-                let subheading_idx = idx + self.task_offset;
-                self.lines[subheading_idx].1 += Duration::from_secs(1);
-            }
-        }
-    }
 
-    pub fn try_activate(&mut self) -> Result<(InfoSubType, String), String> {
-        let info_type: InfoSubType;
-
-        if let Some(_) = self.active_time {
-            info_type = InfoSubType::StopTimer;
-            self.active_time = None;
-        } else {
-            info_type = InfoSubType::StartTimer;
-
-            let timer_pos = self.page_start + self.selected_line as usize - 1;
-
-            if timer_pos >= self.task_offset {
-                return Err("Cannot start a subheading time".to_string());
-            }
-
-            let completed = self.lines[timer_pos].0;
-            if !completed {
-                self.active_time = Some(timer_pos as u16);
-            } else {
-                return Err("Cannot start a time on a completed task".to_string());
-            }
-        }
-
-        return Ok((info_type, self.selected_line.to_string()));
-    }
+   }
 
     pub fn active_on_line(&self) -> bool {
         if let Some(line_num) = self.active_time {

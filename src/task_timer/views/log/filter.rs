@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter, FromRepr};
 
-use crate::task_timer::views::log::log_type::*;
+use crate::task_timer::log_type::*;
 
 #[derive(Serialize, Deserialize, Default, EnumIter, Display, Clone, Copy, FromRepr, PartialEq)]
 pub enum Filter {

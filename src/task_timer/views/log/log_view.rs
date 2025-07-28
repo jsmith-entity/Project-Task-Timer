@@ -7,13 +7,13 @@ use ratatui::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::task_timer::views::{
-    log::{
-        filter::Filter,
-        log_type::{InfoSubType, LogType},
-        time_stamp::TimeStamp,
+use crate::task_timer::{
+    log_type::*,
+    traits::EventHandler,
+    views::{
+        log::{filter::Filter, time_stamp::TimeStamp},
+        paginator::Paginator,
     },
-    paginator::Paginator,
 };
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -93,18 +93,6 @@ impl LogView {
         return recent_log.to_vec();
     }
 
-    pub fn handle_events(&mut self, key_code: KeyCode) -> Result<(InfoSubType, String), String> {
-        match key_code {
-            KeyCode::Char('h') => self.prev_filter(),
-            KeyCode::Char('l') => self.next_filter(),
-            KeyCode::Char('j') => self.paginator.next_page(),
-            KeyCode::Char('k') => self.paginator.prev_page(),
-            _ => (),
-        }
-
-        return Ok((InfoSubType::None, "erm".to_string()));
-    }
-
     fn prev_filter(&mut self) {
         self.selected_filter = self.selected_filter.prev();
     }
@@ -148,6 +136,20 @@ impl LogView {
 
             Line::from(dash_line.clone()).render(separator_area, buf);
         }
+    }
+}
+
+impl EventHandler for LogView {
+    fn handle_events(&mut self, key_code: KeyCode) -> Result<(InfoSubType, String), String> {
+        match key_code {
+            KeyCode::Char('h') => self.prev_filter(),
+            KeyCode::Char('l') => self.next_filter(),
+            KeyCode::Char('j') => self.paginator.next_page(),
+            KeyCode::Char('k') => self.paginator.prev_page(),
+            _ => (),
+        }
+
+        return Ok((InfoSubType::None, "erm".to_string()));
     }
 }
 

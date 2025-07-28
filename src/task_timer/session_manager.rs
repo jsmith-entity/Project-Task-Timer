@@ -3,7 +3,7 @@ use std::fs;
 use std::time::{Duration, Instant};
 
 use crate::file_watcher::file_watcher::FileWatcher;
-use crate::task_timer::{node::Node, views::log::log_type::*, window::Window};
+use crate::task_timer::{log_type::*, node::Node, window::Window};
 
 #[derive(Default, PartialEq, Clone)]
 pub enum SessionState {
@@ -136,6 +136,8 @@ impl SessionManager {
 
                 self.last_save_tick = Instant::now();
             }
+
+            self.window.update();
 
             terminal
                 .draw(|frame| frame.render_widget(&self.window, frame.area()))

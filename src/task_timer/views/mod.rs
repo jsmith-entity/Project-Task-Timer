@@ -1,5 +1,5 @@
 pub mod controls;
-pub mod home;
 pub mod log;
+pub mod task_view;
 
 mod paginator;

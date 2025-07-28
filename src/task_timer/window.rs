@@ -12,13 +12,11 @@ use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
 
 use crate::task_timer::{
+    log_type::*,
     node::Node,
     popup::Popup,
-    views::{
-        controls::*,
-        home::main_view::*,
-        log::{log_type::*, log_view::*},
-    },
+    traits::EventHandler,
+    views::{controls::*, log::log_view::*, task_view::task_view::TaskView},
 };
 
 #[derive(Serialize, Deserialize, EnumIter, Display, Clone, Copy, PartialEq)]
@@ -59,7 +57,7 @@ pub struct Window {
 
     selected_tab: SelectedTab,
 
-    main_view: MainView,
+    task_view: TaskView,
     logger: LogView,
     #[serde(skip)]
     controls: Controls,
@@ -72,7 +70,7 @@ impl Window {
         Self {
             title: "???".to_string(),
 
-            main_view: MainView::new(),
+            task_view: TaskView::new(),
 
             controls: Controls::new(),
             logger: LogView::new(),
@@ -85,26 +83,13 @@ impl Window {
     pub fn load(&mut self, window: Window) {
         self.title = window.title;
 
-        self.main_view = MainView::new_with(window.main_view);
+        self.task_view = TaskView::new_with(window.task_view);
 
         self.controls = Controls::new();
         self.logger = window.logger;
 
         self.selected_tab = window.selected_tab;
         self.popup = None;
-    }
-}
-
-impl Window {
-    pub fn update_tree(&mut self, new_root: Node) {
-        self.main_view.root_node = new_root.clone();
-        self.main_view.update_display_data(new_root);
-    }
-
-    pub fn update_time(&mut self) {
-        if let Err(e) = self.main_view.update_time() {
-            self.log(&e, LogType::ERROR);
-        }
     }
 
     pub fn handle_events(&mut self, key_code: KeyCode) {
@@ -120,7 +105,7 @@ impl Window {
         let changed_tabs = if old_tab == self.selected_tab { false } else { true };
         if !changed_tabs {
             let res = match self.selected_tab {
-                SelectedTab::Tab1 => self.main_view.handle_events(key_code),
+                SelectedTab::Tab1 => self.task_view.handle_events(key_code),
                 SelectedTab::Tab2 => self.logger.handle_events(key_code),
                 _ => Ok((InfoSubType::None, "erm".to_string())),
             };
@@ -133,6 +118,22 @@ impl Window {
                 }
                 Err(e) => self.log(&e, LogType::ERROR),
             }
+        }
+    }
+
+    pub fn update(&mut self) {
+        // add 1 to time
+        self.task_view.update();
+    }
+
+    pub fn update_tree(&mut self, new_root: Node) {
+        self.task_view.root_node = new_root.clone();
+        self.task_view.update_display_data(new_root);
+    }
+
+    pub fn update_time(&mut self) {
+        if let Err(e) = self.task_view.update_time() {
+            self.log(&e, LogType::ERROR);
         }
     }
 
@@ -172,7 +173,7 @@ impl Widget for &Window {
         block.render(body_area, buf);
 
         match self.selected_tab {
-            SelectedTab::Tab1 => self.main_view.render(inner_area, buf),
+            SelectedTab::Tab1 => self.task_view.render(inner_area, buf),
             SelectedTab::Tab2 => self.logger.render(inner_area, buf),
             SelectedTab::Tab3 => self.controls.render(inner_area, buf),
         }
