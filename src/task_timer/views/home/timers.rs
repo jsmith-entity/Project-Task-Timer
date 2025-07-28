@@ -13,39 +13,38 @@ use crate::task_timer::{node::Node, views::log::log_type::InfoSubType};
 #[derive(Deserialize, Serialize, Default, Clone)]
 pub struct Timers {
     pub total_time: Duration,
-    pub task_times: Vec<(bool, Duration)>,
-    pub subheading_times: Vec<(bool, Duration)>,
+    pub lines: Vec<(bool, Duration)>,
+    pub task_offset: usize,
     pub selected_line: u16,
     pub content_height: u16,
     pub active_time: Option<u16>,
 
-    task_offset: usize,
+    page_start: usize,
+    page_end: usize,
 }
 
 impl Timers {
     pub fn new(node: &Node) -> Self {
         let total_time = node.total_time.clone();
-        let selected_line = 1;
-
-        let task_times: Vec<(bool, Duration)> = node
+        let tasks: Vec<(bool, Duration)> = node
             .completed_tasks
             .iter()
             .cloned()
             .zip(node.content_times.iter().cloned())
             .collect();
-        let subheading_times = Timers::subheading_times(node);
+        let subheadings = Timers::subheading_times(node);
 
-        let task_offset = task_times.len();
-        let content_height = task_offset as u16 + subheading_times.len() as u16;
+        let content_height = tasks.len() as u16 + subheadings.len() as u16;
 
         return Self {
             total_time,
-            task_times,
-            subheading_times,
-            selected_line,
+            lines: tasks.clone().into_iter().chain(subheadings.into_iter()).collect(),
+            task_offset: tasks.len(),
+            selected_line: 1,
             content_height,
             active_time: None,
-            task_offset,
+            page_start: 0,
+            page_end: 0,
         };
     }
 
@@ -54,10 +53,10 @@ impl Timers {
             let idx = self.active_time.unwrap() as usize;
 
             if idx < self.task_offset {
-                self.task_times[idx].1 += Duration::from_secs(1);
+                self.lines[idx].1 += Duration::from_secs(1);
             } else {
-                let subheading_idx = idx - self.task_offset;
-                self.subheading_times[subheading_idx].1 += Duration::from_secs(1);
+                let subheading_idx = idx + self.task_offset;
+                self.lines[subheading_idx].1 += Duration::from_secs(1);
             }
         }
     }
@@ -71,15 +70,15 @@ impl Timers {
         } else {
             info_type = InfoSubType::StartTimer;
 
-            let timer_pos = self.selected_line - 1;
+            let timer_pos = self.page_start + self.selected_line as usize - 1;
 
-            if timer_pos >= self.task_times.len() as u16 {
+            if timer_pos >= self.task_offset {
                 return Err("Cannot start a subheading time".to_string());
             }
 
-            let completed = self.task_times[timer_pos as usize].0;
+            let completed = self.lines[timer_pos].0;
             if !completed {
-                self.active_time = Some(timer_pos);
+                self.active_time = Some(timer_pos as u16);
             } else {
                 return Err("Cannot start a time on a completed task".to_string());
             }
@@ -90,11 +89,24 @@ impl Timers {
 
     pub fn active_on_line(&self) -> bool {
         if let Some(line_num) = self.active_time {
-            if line_num == self.selected_line - 1 {
+            if line_num == self.page_start as u16 + self.selected_line - 1 {
                 return true;
             }
         }
         return false;
+    }
+
+    pub fn task_slice(&self) -> &[(bool, Duration)] {
+        return &self.lines[0..self.task_offset];
+    }
+
+    pub fn subheading_slice(&self) -> &[(bool, Duration)] {
+        return &self.lines[self.task_offset..self.lines.len()];
+    }
+
+    pub fn slice_bounds(&mut self, start_idx: usize, end_idx: usize) {
+        self.page_start = start_idx;
+        self.page_end = end_idx;
     }
 
     fn subheading_times(node: &Node) -> Vec<(bool, Duration)> {
@@ -133,7 +145,8 @@ impl Timers {
 
 impl Widget for &Timers {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        for (idx, entry) in self.task_times.iter().enumerate() {
+        let entry_slice = &self.lines[self.page_start..self.page_end];
+        for (idx, entry) in entry_slice.iter().enumerate() {
             let completed = entry.0;
             let time = &entry.1;
 
@@ -153,27 +166,6 @@ impl Widget for &Timers {
             };
 
             Line::from(Timers::format_duration(time))
-                .style(style)
-                .render(display_area, buf);
-        }
-
-        for (idx, &(completed, time)) in self.subheading_times.iter().enumerate() {
-            let mut style = Style::default();
-            if self.task_offset as u16 + idx as u16 + 1 == self.selected_line {
-                style = style.fg(Color::Black).bg(Color::Gray);
-            }
-            if completed {
-                style = style.fg(Color::DarkGray);
-            }
-
-            let display_area = Rect {
-                x: area.x,
-                y: area.y + self.task_offset as u16 + idx as u16,
-                width: area.width,
-                height: 1,
-            };
-
-            Line::from(Timers::format_duration(&time))
                 .style(style)
                 .render(display_area, buf);
         }

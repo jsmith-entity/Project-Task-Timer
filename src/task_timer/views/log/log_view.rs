@@ -7,10 +7,13 @@ use ratatui::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::task_timer::views::log::{
-    filter::Filter,
-    log_type::{InfoSubType, LogType},
-    time_stamp::TimeStamp,
+use crate::task_timer::views::{
+    log::{
+        filter::Filter,
+        log_type::{InfoSubType, LogType},
+        time_stamp::TimeStamp,
+    },
+    paginator::Paginator,
 };
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -47,8 +50,7 @@ pub struct LogView {
     pub logs: Vec<LogEntry>,
 
     selected_filter: Filter,
-    page: usize,
-    page_size: usize,
+    paginator: Paginator,
 }
 
 impl LogView {
@@ -57,8 +59,11 @@ impl LogView {
             logs: Vec::new(),
 
             selected_filter: Filter::default(),
-            page: 0,
-            page_size: 9,
+            paginator: Paginator {
+                page: 0,
+                page_size: 9,
+                entry_len: 0,
+            },
         };
     }
 
@@ -68,6 +73,8 @@ impl LogView {
             time_stamp: TimeStamp::new(),
             message: message.to_string(),
         });
+
+        self.paginator.entry_len = self.logs.len();
 
         if self.logs.len() >= 100 {
             self.logs.remove(0);
@@ -90,8 +97,8 @@ impl LogView {
         match key_code {
             KeyCode::Char('h') => self.prev_filter(),
             KeyCode::Char('l') => self.next_filter(),
-            KeyCode::Char('j') => self.next_page(),
-            KeyCode::Char('k') => self.page = self.page.saturating_sub(1),
+            KeyCode::Char('j') => self.paginator.next_page(),
+            KeyCode::Char('k') => self.paginator.prev_page(),
             _ => (),
         }
 
@@ -106,23 +113,8 @@ impl LogView {
         self.selected_filter = self.selected_filter.next();
     }
 
-    fn next_page(&mut self) {
-        if (self.page + 1) * self.page_size < self.logs.len() {
-            self.page += 1;
-        }
-    }
-
-    fn render_page_status(&self, area: Rect, buf: &mut Buffer) {
-        let total_pages = self.logs.len() / self.page_size + 1;
-
-        let text = format!("↑↓ Page: ({}/{})", self.page + 1, total_pages);
-        Line::from(text).render(area, buf);
-    }
-
     fn render_log_page(&self, area: Rect, buf: &mut Buffer) {
-        let total_logs = self.logs.len();
-        let end_idx = total_logs.saturating_sub(self.page * self.page_size);
-        let start_idx = end_idx.saturating_sub(self.page_size);
+        let (start_idx, end_idx) = self.paginator.page_slice();
 
         let dash_line = "-".repeat(area.width as usize);
 
@@ -167,7 +159,7 @@ impl Widget for &LogView {
         let [header_area, body_area, page_area] = vertical.areas(area);
 
         self.selected_filter.render(header_area, buf);
-        self.render_page_status(page_area, buf);
+        self.paginator.render(page_area, buf);
         self.render_log_page(body_area, buf);
     }
 }

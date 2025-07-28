@@ -12,6 +12,7 @@ use crate::task_timer::{
     views::{
         home::{navigation_bar::NavigationBar, tasks_overview::TaskOverview, timers::Timers},
         log::log_type::*,
+        paginator::Paginator,
     },
 };
 
@@ -24,6 +25,7 @@ pub struct MainView {
     pub task_overview: TaskOverview,
     pub timers: Timers,
 
+    paginator: Paginator,
     content_height: u16,
     selected_line: u16,
 
@@ -40,6 +42,11 @@ impl MainView {
             task_overview: TaskOverview::default(),
             timers: Timers::default(),
 
+            paginator: Paginator {
+                page: 0,
+                page_size: 25,
+                entry_len: 0,
+            },
             content_height: 0,
             selected_line: 1,
 
@@ -56,6 +63,11 @@ impl MainView {
             task_overview: main_view.task_overview,
             timers: main_view.timers,
 
+            paginator: Paginator {
+                page: 0,
+                page_size: 25,
+                entry_len: 0,
+            },
             content_height: main_view.content_height,
             selected_line: main_view.selected_line,
 
@@ -66,16 +78,19 @@ impl MainView {
     pub fn update_display_data(&mut self, new_display_node: Node) {
         self.timers = Timers::new(&new_display_node);
 
-        let completed_subheadings = self.timers.subheading_times.iter().map(|e| e.0).collect();
+        let subheading_slice = self.timers.subheading_slice();
+        let completed_subheadings = subheading_slice.iter().map(|e| e.0).collect();
         self.task_overview = TaskOverview::new(&new_display_node, &completed_subheadings);
 
-        let timers_len = self.timers.task_times.len() + self.timers.subheading_times.len();
-        let tasks_len = self.task_overview.tasks.len() + self.task_overview.subheadings.len();
-        assert!(timers_len == tasks_len);
+        let timers_len = self.timers.lines.len();
+        let entry_len = self.task_overview.lines.len();
+        assert!(timers_len == entry_len);
 
-        self.content_height = timers_len as u16;
         self.selected_line = 1;
         self.displayed_node = new_display_node;
+
+        self.update_paginator(entry_len);
+        self.content_height = self.paginator.content_height();
     }
 
     pub fn get_subheading(&self, pos: usize) -> Option<Node> {
@@ -97,6 +112,24 @@ impl MainView {
         match key_code {
             KeyCode::Char('j') => self.select_line(self.selected_line + 1),
             KeyCode::Char('k') => self.select_line(self.selected_line - 1),
+            KeyCode::Char('J') => {
+                self.paginator.next_page();
+                let (page_start, page_end) = self.paginator.page_slice();
+
+                self.task_overview.slice_bounds(page_start, page_end);
+                self.timers.slice_bounds(page_start, page_end);
+                self.content_height = self.paginator.content_height();
+                self.select_line(1);
+            }
+            KeyCode::Char('K') => {
+                self.paginator.prev_page();
+                let (page_start, page_end) = self.paginator.page_slice();
+
+                self.task_overview.slice_bounds(page_start, page_end);
+                self.timers.slice_bounds(page_start, page_end);
+                self.content_height = self.paginator.content_height();
+                self.select_line(self.content_height);
+            }
             _ => (),
         }
 
@@ -119,7 +152,8 @@ impl MainView {
 
         let mut total_time = Duration::default();
 
-        for (idx, entry) in self.timers.task_times.iter().enumerate() {
+        let task_slice = self.timers.task_slice();
+        for (idx, entry) in task_slice.iter().enumerate() {
             let time = &entry.1;
 
             total_time += time.clone();
@@ -136,31 +170,39 @@ impl MainView {
     }
 
     pub fn toggle_task(&mut self) -> Result<(InfoSubType, String), String> {
-        assert!(self.timers.task_times.len() == self.task_overview.tasks.len());
+        assert!(self.timers.lines.len() == self.task_overview.lines.len());
 
         let info_type: InfoSubType;
 
-        let idx = self.selected_line as usize - 1;
-        if idx < self.timers.task_times.len() {
+        let idx = self.paginator.offset() + (self.selected_line as usize - 1);
+        if idx < self.task_overview.task_offset {
             if self.timers.active_on_line() {
                 self.timers.active_time = None;
             }
 
-            assert!(self.timers.task_times[idx].0 == self.task_overview.tasks[idx].0);
-            if self.timers.task_times[idx].0 {
+            if self.timers.lines[idx].0 {
                 info_type = InfoSubType::UncompleteTask;
             } else {
                 info_type = InfoSubType::CompleteTask;
             }
 
-            self.timers.task_times[idx].0 = !self.timers.task_times[idx].0;
-            self.task_overview.tasks[idx].0 = !self.task_overview.tasks[idx].0;
+            assert!(self.timers.lines[idx].0 == self.task_overview.lines[idx].0);
+            self.timers.lines[idx].0 = !self.timers.lines[idx].0;
+            self.task_overview.lines[idx].0 = !self.task_overview.lines[idx].0;
         } else {
             return Err("Cannot complete a subheading".to_string());
         }
 
-        let task_name = self.task_overview.tasks[idx].1.clone();
+        let task_name = self.task_overview.lines[idx].1.clone();
         return Ok((info_type, task_name));
+    }
+
+    fn update_paginator(&mut self, entry_len: usize) {
+        self.paginator.entry_len = entry_len;
+        let (page_start, page_end) = self.paginator.page_slice();
+
+        self.timers.slice_bounds(page_start, page_end);
+        self.task_overview.slice_bounds(page_start, page_end);
     }
 
     fn select_line(&mut self, line_num: u16) {
@@ -177,7 +219,9 @@ impl MainView {
             Err(e) => return Err(e),
         };
 
-        self.displayed_node.completed_tasks = self.task_overview.tasks.iter().map(|e| e.0).collect();
+        let task_slice = &self.task_overview.lines[0..self.task_overview.task_offset];
+        self.displayed_node.completed_tasks = task_slice.iter().map(|e| e.0).collect();
+
         if let Err(e) = self.root_node.update_node(&curr_node_path, &self.displayed_node) {
             return Err(e);
         }
@@ -204,7 +248,8 @@ impl MainView {
             Err(e) => return Err(e),
         };
 
-        self.displayed_node.completed_tasks = self.task_overview.tasks.iter().map(|e| e.0).collect();
+        let task_slice = &self.task_overview.lines[0..self.task_overview.task_offset];
+        self.displayed_node.completed_tasks = task_slice.iter().map(|e| e.0).collect();
         if let Err(e) = self.root_node.update_node(&node_path, &self.displayed_node) {
             return Err(e);
         }
@@ -238,8 +283,8 @@ impl Widget for &MainView {
     fn render(self, area: Rect, buf: &mut Buffer) {
         use Constraint::{Length, Min};
 
-        let vertical = Layout::vertical([Length(3), Min(0)]);
-        let [navigation_row, content_area] = vertical.areas(area);
+        let vertical = Layout::vertical([Length(3), Min(0), Length(1)]);
+        let [navigation_row, content_area, page_area] = vertical.areas(area);
 
         self.nav_bar.render(navigation_row, buf);
 
@@ -248,5 +293,6 @@ impl Widget for &MainView {
 
         self.timers.render(time_area, buf);
         self.task_overview.render(task_area, buf);
+        self.paginator.render(page_area, buf);
     }
 }

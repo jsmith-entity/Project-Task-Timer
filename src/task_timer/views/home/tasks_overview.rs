@@ -11,10 +11,13 @@ use crate::task_timer::node::Node;
 
 #[derive(Deserialize, Serialize, Default, Clone)]
 pub struct TaskOverview {
-    pub tasks: Vec<(bool, String)>,
-    pub subheadings: Vec<(bool, String)>,
     pub selected_line: u16,
     pub content_height: u16,
+    pub lines: Vec<(bool, String)>,
+    pub task_offset: usize,
+
+    page_start: usize,
+    page_end: usize,
 }
 
 impl TaskOverview {
@@ -34,47 +37,31 @@ impl TaskOverview {
             .filter_map(|(completed, e)| e.heading.clone().map(|h| (*completed, h)))
             .collect();
 
-        let selected_line = 1;
         let content_height = tasks.len() as u16 + subheadings.len() as u16;
 
         return Self {
-            tasks,
-            subheadings,
-            selected_line,
+            selected_line: 1,
             content_height,
+            lines: tasks.clone().into_iter().chain(subheadings.into_iter()).collect(),
+            task_offset: tasks.len(),
+
+            page_start: 0,
+            page_end: 0,
         };
     }
 
-    fn render_tasks(&self, area: Rect, buf: &mut Buffer) -> u16 {
-        let mut task_offset: u16 = 0;
-        for (completed, task) in self.tasks.iter() {
-            let mut style = Style::default();
-            if task_offset + 1 == self.selected_line {
-                style = style.fg(Color::Black).bg(Color::Gray);
-            }
-            if *completed {
-                style = style.fg(Color::DarkGray);
-            }
-
-            let display_area = Rect {
-                x: area.x,
-                y: area.y + task_offset,
-                width: area.width,
-                height: 1,
-            };
-
-            Line::from(task.clone()).style(style).render(display_area, buf);
-
-            task_offset += 1;
-        }
-
-        return task_offset;
+    pub fn slice_bounds(&mut self, start_idx: usize, end_idx: usize) {
+        self.page_start = start_idx;
+        self.page_end = end_idx;
     }
+}
 
-    fn render_subheadings(&self, area: Rect, buf: &mut Buffer, task_offset: u16) {
-        for (idx, (completed, subheading)) in self.subheadings.iter().enumerate() {
+impl Widget for &TaskOverview {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        let entry_slice = &self.lines[self.page_start..self.page_end];
+        for (idx, (completed, subheading)) in entry_slice.iter().enumerate() {
             let mut style = Style::default();
-            if task_offset + idx as u16 + 1 == self.selected_line {
+            if idx as u16 + 1 == self.selected_line {
                 style = style.fg(Color::Black).bg(Color::Gray);
             }
             if *completed {
@@ -83,7 +70,7 @@ impl TaskOverview {
 
             let display_area = Rect {
                 x: area.x,
-                y: area.y + task_offset + idx as u16,
+                y: area.y + idx as u16,
                 width: area.width,
                 height: 1,
             };
@@ -92,12 +79,5 @@ impl TaskOverview {
                 .style(style)
                 .render(display_area, buf);
         }
-    }
-}
-
-impl Widget for &TaskOverview {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        let task_offset = self.render_tasks(area, buf);
-        self.render_subheadings(area, buf, task_offset);
     }
 }
