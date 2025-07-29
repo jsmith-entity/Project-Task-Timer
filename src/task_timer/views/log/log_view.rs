@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::task_timer::{
     log_type::*,
-    traits::EventHandler,
+    traits::ViewEventHandler,
     views::{
         log::{filter::Filter, time_stamp::TimeStamp},
         paginator::Paginator,
@@ -139,7 +139,7 @@ impl LogView {
     }
 }
 
-impl EventHandler for LogView {
+impl ViewEventHandler for LogView {
     fn handle_events(&mut self, key_code: KeyCode) -> Result<(InfoSubType, String), String> {
         match key_code {
             KeyCode::Char('h') => self.prev_filter(),

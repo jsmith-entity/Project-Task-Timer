@@ -14,11 +14,9 @@ pub fn export(root_node: Node, file_name: String) {
 fn push_node(node: &Node, indent_len: usize) -> String {
     let mut contents = String::new();
 
-    let indent = "\t".repeat(indent_len);
-
     if node.heading.is_some() {
         let heading = node.heading.clone().unwrap();
-        contents.push_str(&format!("{}{}\n", indent, heading));
+        contents.push_str(&heading);
     }
 
     for idx in 0..node.content.len() {
@@ -29,7 +27,7 @@ fn push_node(node: &Node, indent_len: usize) -> String {
             checkbox = "- [ ] ".to_string();
         }
 
-        contents.push_str(&format!("{}{}{}\n", indent, checkbox, node.content[idx]));
+        contents.push_str(&format!("{}{}\n", checkbox, node.content[idx]));
     }
 
     for child_node in node.children.iter() {

@@ -14,7 +14,7 @@ use std::time::Duration;
 use crate::task_timer::{
     log_type::*,
     node::{Node, NodePath},
-    traits::EventHandler,
+    traits::ViewEventHandler,
     views::paginator::Paginator,
 };
 
@@ -228,7 +228,7 @@ impl TaskView {
     }
 }
 
-impl EventHandler for TaskView {
+impl ViewEventHandler for TaskView {
     fn handle_events(&mut self, key_code: KeyCode) -> Result<(InfoSubType, String), String> {
         match key_code {
             KeyCode::Char('j') => self.select_line(self.selected_line + 1),
@@ -265,7 +265,6 @@ impl Widget for &TaskView {
         let [navigation_row, task_area, page_area] = vertical.areas(area);
 
         self.nav_bar.render(navigation_row, buf);
-
         self.tasks.render(task_area, buf);
         self.paginator.render(page_area, buf);
     }

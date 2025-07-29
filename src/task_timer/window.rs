@@ -14,8 +14,9 @@ use strum_macros::{Display, EnumIter};
 use crate::task_timer::{
     log_type::*,
     node::Node,
-    popup::Popup,
-    traits::EventHandler,
+    popups::*,
+    session_manager::SessionState,
+    traits::*,
     views::{controls::*, log::log_view::*, task_view::task_view::TaskView},
 };
 
@@ -61,8 +62,7 @@ pub struct Window {
     logger: LogView,
     #[serde(skip)]
     controls: Controls,
-    #[serde(skip)]
-    popup: Option<Popup>,
+    popup: PopupType,
 }
 
 impl Window {
@@ -76,7 +76,7 @@ impl Window {
             logger: LogView::new(),
 
             selected_tab: SelectedTab::Tab1,
-            popup: None,
+            popup: PopupType::None,
         }
     }
 
@@ -89,40 +89,14 @@ impl Window {
         self.logger = window.logger;
 
         self.selected_tab = window.selected_tab;
-        self.popup = None;
+        self.popup = window.popup;
     }
 
-    pub fn handle_events(&mut self, key_code: KeyCode) {
-        let old_tab = self.selected_tab;
-
-        match key_code {
-            KeyCode::Char('1') => self.selected_tab = SelectedTab::Tab1,
-            KeyCode::Char('2') => self.selected_tab = SelectedTab::Tab2,
-            KeyCode::Char('3') => self.selected_tab = SelectedTab::Tab3,
-            _ => {}
-        };
-
-        let changed_tabs = if old_tab == self.selected_tab { false } else { true };
-        if !changed_tabs {
-            let res = match self.selected_tab {
-                SelectedTab::Tab1 => self.task_view.handle_events(key_code),
-                SelectedTab::Tab2 => self.logger.handle_events(key_code),
-                _ => Ok((InfoSubType::None, "erm".to_string())),
-            };
-
-            match res {
-                Ok((log_type, info)) => {
-                    if log_type != InfoSubType::None {
-                        self.log(&log_type.message(info), LogType::INFO(log_type));
-                    }
-                }
-                Err(e) => self.log(&e, LogType::ERROR),
-            }
-        }
+    pub fn log(&mut self, message: &str, log_type: LogType) {
+        self.logger.log(message, log_type);
     }
 
     pub fn update(&mut self) {
-        // add 1 to time
         self.task_view.update();
     }
 
@@ -137,21 +111,57 @@ impl Window {
         }
     }
 
-    pub fn log(&mut self, message: &str, log_type: LogType) {
-        self.logger.log(message, log_type);
-    }
-
-    pub fn enable_popup(&mut self, message: &str) {
-        let new_popup = Popup::new(message.to_string());
-        self.popup = Some(new_popup);
-    }
-
-    pub fn disable_popup(&mut self) {
-        self.popup = None;
-    }
-
     pub fn extract_node(&self) -> Node {
         return self.task_view.root_node.clone();
+    }
+}
+
+impl EventHandler for Window {
+    fn handle_events(&mut self, key_code: KeyCode) -> SessionState {
+        let new_state: SessionState;
+
+        if self.popup != PopupType::None {
+            new_state = self.popup.handle_events(key_code);
+            if new_state != SessionState::AwaitingPrompt {
+                self.popup = PopupType::None;
+            }
+        } else {
+            new_state = match key_code {
+                KeyCode::Char('1') => {
+                    self.selected_tab = SelectedTab::Tab1;
+                    SessionState::Running
+                }
+                KeyCode::Char('2') => {
+                    self.selected_tab = SelectedTab::Tab2;
+                    SessionState::Running
+                }
+                KeyCode::Char('3') => {
+                    self.selected_tab = SelectedTab::Tab3;
+                    SessionState::Running
+                }
+                KeyCode::Esc => {
+                    self.popup = PopupType::ConfirmQuit;
+                    SessionState::AwaitingPrompt
+                }
+                _ => SessionState::Running,
+            };
+
+            let res = match self.selected_tab {
+                SelectedTab::Tab1 => self.task_view.handle_events(key_code),
+                SelectedTab::Tab2 => self.logger.handle_events(key_code),
+                _ => Ok((InfoSubType::None, "erm".to_string())),
+            };
+            match res {
+                Ok((log_type, info)) => {
+                    if log_type != InfoSubType::None {
+                        self.log(&log_type.message(info), LogType::INFO(log_type));
+                    }
+                }
+                Err(e) => self.log(&e, LogType::ERROR),
+            }
+        }
+
+        return new_state;
     }
 }
 
@@ -182,8 +192,8 @@ impl Widget for &Window {
             SelectedTab::Tab3 => self.controls.render(inner_area, buf),
         }
 
-        if self.popup.is_some() {
-            self.popup.as_ref().unwrap().render(area, buf);
+        if self.popup != PopupType::None {
+            //self.popup.render(area, buf);
         }
     }
 }

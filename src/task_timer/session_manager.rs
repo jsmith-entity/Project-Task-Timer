@@ -4,9 +4,9 @@ use std::time::{Duration, Instant};
 
 use crate::file_watcher::file_watcher::FileWatcher;
 use crate::markdown_serialiser::*;
-use crate::task_timer::{log_type::*, node::Node, window::Window};
+use crate::task_timer::{log_type::*, node::Node, traits::EventHandler, window::Window};
 
-#[derive(Default, PartialEq, Clone)]
+#[derive(Default, PartialEq, Clone, Debug)]
 pub enum SessionState {
     #[default]
     Running,
@@ -148,47 +148,14 @@ impl SessionManager {
             if event::poll(Duration::from_millis(50)).unwrap() {
                 let event = event::read().unwrap();
 
-                self.session_state = self.handle_events(&event);
+                let Event::Key(key_event) = event else {
+                    continue;
+                };
+
+                self.session_state = self.handle_events(key_event.code);
             }
         }
         ratatui::restore();
-    }
-
-    fn handle_events(&mut self, event: &Event) -> SessionState {
-        let Event::Key(key_event) = event else {
-            return self.session_state.clone();
-        };
-
-        let mut new_state: SessionState = match self.session_state {
-            SessionState::Running => {
-                self.window.handle_events(key_event.code);
-                SessionState::Running
-            }
-            SessionState::AwaitingPrompt => self.handle_prompt_event(&key_event),
-            SessionState::Quitting => SessionState::Quitting,
-        };
-
-        match key_event.code {
-            KeyCode::Esc | KeyCode::Char('q') => {
-                self.window.enable_popup("Exit Project?");
-                new_state = SessionState::AwaitingPrompt;
-            }
-            _ => (),
-        }
-
-        if self.session_state == SessionState::AwaitingPrompt && new_state == SessionState::Running {
-            self.window.disable_popup();
-        }
-
-        return new_state;
-    }
-
-    fn handle_prompt_event(&mut self, key_event: &KeyEvent) -> SessionState {
-        return match key_event.code {
-            KeyCode::Char('y') | KeyCode::Esc => SessionState::Quitting,
-            KeyCode::Char('n') => SessionState::Running,
-            _ => SessionState::AwaitingPrompt,
-        };
     }
 
     fn save(&mut self) -> Result<(), String> {
@@ -229,5 +196,11 @@ impl SessionManager {
         markdown_serialiser::export(self.root_node.clone(), file_name);
 
         return Ok(());
+    }
+}
+
+impl EventHandler for SessionManager {
+    fn handle_events(&mut self, key_code: KeyCode) -> SessionState {
+        return self.window.handle_events(key_code);
     }
 }
