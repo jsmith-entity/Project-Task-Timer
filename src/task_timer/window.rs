@@ -149,6 +149,10 @@ impl Window {
     pub fn disable_popup(&mut self) {
         self.popup = None;
     }
+
+    pub fn extract_node(&self) -> Node {
+        return self.task_view.root_node.clone();
+    }
 }
 
 impl Widget for &Window {

@@ -1,4 +1,5 @@
 mod file_watcher;
+mod markdown_serialiser;
 mod task_timer;
 
 use std::env;
@@ -11,7 +12,7 @@ fn main() {
 
         let res = s_manager.attach_file_watcher(&file_name);
         if let Ok(_) = res {
-            // s_manager.load();
+            s_manager.load();
             s_manager.run();
         } else if let Err(e) = res {
             println!("{}", e);

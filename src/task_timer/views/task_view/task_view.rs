@@ -13,9 +13,9 @@ use std::time::Duration;
 
 use crate::task_timer::{
     log_type::*,
-    node::Node,
+    node::{Node, NodePath},
     traits::EventHandler,
-    views::{paginator::Paginator, task_view::task},
+    views::paginator::Paginator,
 };
 
 use super::{NavigationBar, Tasks};
@@ -62,14 +62,10 @@ impl TaskView {
             content_area: Rect::default(),
 
             displayed_node: task_view.displayed_node,
-            tasks: task_view.tasks,
+            tasks: task_view.tasks.clone(),
 
-            paginator: Paginator {
-                page: 0,
-                page_size: 25,
-                entry_len: 0,
-            },
-            content_height: task_view.content_height,
+            paginator: task_view.paginator,
+            content_height: task_view.tasks.content_height,
             selected_line: task_view.selected_line,
 
             nav_bar: task_view.nav_bar,
@@ -135,6 +131,9 @@ impl TaskView {
         let info_type: InfoSubType;
         if idx < self.tasks.task_offset {
             info_type = self.tasks.toggle_task(idx);
+            if let Err(e) = self.update_root() {
+                return Err(e);
+            }
         } else {
             return Err("Cannot complete a subheading".to_string());
         }
@@ -149,6 +148,22 @@ impl TaskView {
 
         self.tasks.slice_bounds(page_start, page_end);
     }
+
+    fn update_root(&mut self) -> Result<NodePath, String> {
+        let node_path = match Node::find_path(&self.root_node, &self.displayed_node) {
+            Ok(path) => path,
+            Err(e) => return Err(e),
+        };
+
+        let task_slice = self.tasks.task_slice();
+        self.displayed_node.completed_tasks = task_slice.iter().map(|e| e.completed).collect();
+
+        if let Err(e) = self.root_node.update_node(&node_path, &self.displayed_node) {
+            return Err(e);
+        }
+
+        return Ok(node_path);
+    }
 }
 
 impl TaskView {
@@ -160,17 +175,12 @@ impl TaskView {
     }
 
     fn enter_prev_node(&mut self) -> Result<(InfoSubType, String), String> {
-        let mut curr_node_path = match Node::find_path(&self.root_node, &self.displayed_node) {
-            Ok(path) => path,
-            Err(e) => return Err(e),
-        };
-
-        let task_slice = self.tasks.task_slice();
-        self.displayed_node.completed_tasks = task_slice.iter().map(|e| e.completed).collect();
-
-        if let Err(e) = self.root_node.update_node(&curr_node_path, &self.displayed_node) {
+        let res = self.update_root();
+        if let Err(e) = res {
             return Err(e);
         }
+
+        let mut curr_node_path = res.unwrap();
 
         curr_node_path.pop();
         if let Some(new_node) = self.root_node.get_node(&curr_node_path) {
@@ -189,14 +199,7 @@ impl TaskView {
     }
 
     fn enter_next_node(&mut self) -> Result<(InfoSubType, String), String> {
-        let node_path = match Node::find_path(&self.root_node, &self.displayed_node) {
-            Ok(path) => path,
-            Err(e) => return Err(e),
-        };
-
-        let task_slice = self.tasks.task_slice();
-        self.displayed_node.completed_tasks = task_slice.iter().map(|e| e.completed).collect();
-        if let Err(e) = self.root_node.update_node(&node_path, &self.displayed_node) {
+        if let Err(e) = self.update_root() {
             return Err(e);
         }
 

@@ -3,6 +3,7 @@ use std::fs;
 use std::time::{Duration, Instant};
 
 use crate::file_watcher::file_watcher::FileWatcher;
+use crate::markdown_serialiser::*;
 use crate::task_timer::{log_type::*, node::Node, window::Window};
 
 #[derive(Default, PartialEq, Clone)]
@@ -15,6 +16,7 @@ pub enum SessionState {
 
 pub struct SessionManager {
     file_watcher: Option<FileWatcher>,
+    root_node: Node,
     window: Window,
 
     last_update_tick: Instant,
@@ -27,6 +29,7 @@ impl SessionManager {
     pub fn new() -> Self {
         Self {
             file_watcher: None,
+            root_node: Node::new(),
             window: Window::new(),
 
             last_update_tick: Instant::now(),
@@ -91,6 +94,7 @@ impl SessionManager {
 
         let initial_contents = self.file_watcher.as_ref().unwrap().read_file();
         let markdown_tree = Node::convert_from(&initial_contents);
+        self.root_node = markdown_tree.clone();
         self.window.update_tree(markdown_tree);
 
         Ok(())
@@ -117,6 +121,7 @@ impl SessionManager {
 
             if let Some(buf) = self.file_watcher.as_mut().unwrap().poll_change() {
                 let new_content_tree = Node::convert_from(&buf);
+                self.root_node = new_content_tree.clone();
                 self.window.update_tree(new_content_tree);
             }
 
@@ -126,12 +131,9 @@ impl SessionManager {
             }
 
             if self.last_save_tick.elapsed().as_secs() >= 3600 {
-                use InfoSubType::*;
-                use LogType::*;
-
                 match self.save() {
-                    Ok(()) => self.window.log("Saved", INFO(General)),
-                    Err(e) => self.window.log(&e, ERROR),
+                    Ok(()) => self.window.log("Saved", LogType::INFO(InfoSubType::General)),
+                    Err(e) => self.window.log(&e, LogType::ERROR),
                 }
 
                 self.last_save_tick = Instant::now();
@@ -192,6 +194,8 @@ impl SessionManager {
     fn save(&mut self) -> Result<(), String> {
         assert!(self.file_watcher.is_some());
 
+        self.root_node = self.window.extract_node();
+
         let home_dir = std::env::home_dir().unwrap().to_string_lossy().to_string();
 
         let saves = format!("{}/.project-saves", home_dir);
@@ -220,6 +224,9 @@ impl SessionManager {
 
         let serialised = serde_json::to_string_pretty(&self.window).unwrap();
         fs::write(save_file, serialised).expect("erm");
+
+        let file_name = self.file_watcher.as_ref().unwrap().file_name.clone();
+        markdown_serialiser::export(self.root_node.clone(), file_name);
 
         return Ok(());
     }
