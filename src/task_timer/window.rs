@@ -193,7 +193,7 @@ impl Widget for &Window {
         }
 
         if self.popup != PopupType::None {
-            //self.popup.render(area, buf);
+            self.popup.render(area, buf);
         }
     }
 }

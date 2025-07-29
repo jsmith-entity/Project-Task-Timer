@@ -21,6 +21,8 @@ pub enum InfoSubType {
     StartTimer,
     #[strum(to_string = "Stopping Timer")]
     StopTimer,
+    #[strum(to_string = "Saving State")]
+    Save,
     #[strum(to_string = "None")]
     None,
 }
@@ -35,6 +37,7 @@ impl InfoSubType {
             UncompleteTask => format!("Cancelling completion of task: {}", info.to_string()),
             StartTimer => format!("Starting time on task at line: {}", info.to_string()),
             StopTimer => format!("Stopping timer on task at line: {}", info.to_string()),
+            Save => "Successfully saved the project".to_string(),
             _ => "erm".to_string(),
         }
         .to_string();

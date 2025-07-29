@@ -109,6 +109,8 @@ impl SessionManager {
         let mut terminal = ratatui::init();
 
         self.window.title = self.project_dir_name();
+        self.window
+            .log("Launched project", LogType::INFO(InfoSubType::General));
 
         loop {
             if self.session_state == SessionState::Quitting {
@@ -130,9 +132,12 @@ impl SessionManager {
                 self.last_update_tick = Instant::now();
             }
 
-            if self.last_save_tick.elapsed().as_secs() >= 3600 {
+            if self.last_save_tick.elapsed().as_secs() >= 1 {
                 match self.save() {
-                    Ok(()) => self.window.log("Saved", LogType::INFO(InfoSubType::General)),
+                    Ok(()) => self.window.log(
+                        &InfoSubType::Save.message(InfoSubType::Save),
+                        LogType::INFO(InfoSubType::Save),
+                    ),
                     Err(e) => self.window.log(&e, LogType::ERROR),
                 }
 
@@ -156,6 +161,9 @@ impl SessionManager {
             }
         }
         ratatui::restore();
+
+        self.window
+            .log("Closed project", LogType::INFO(InfoSubType::General));
     }
 
     fn save(&mut self) -> Result<(), String> {

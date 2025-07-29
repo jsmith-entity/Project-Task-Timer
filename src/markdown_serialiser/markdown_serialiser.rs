@@ -16,7 +16,7 @@ fn push_node(node: &Node, indent_len: usize) -> String {
 
     if node.heading.is_some() {
         let heading = node.heading.clone().unwrap();
-        contents.push_str(&heading);
+        contents.push_str(&format!("{}\n", heading));
     }
 
     for idx in 0..node.content.len() {
