@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 use crate::task_timer::{
-    log_type::*,
+    InfoSubType,
     node::{Node, NodePath},
     traits::ViewEventHandler,
     views::paginator::Paginator,

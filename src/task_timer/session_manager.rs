@@ -1,10 +1,10 @@
-use crossterm::event::{self, Event, KeyCode, KeyEvent};
+use crossterm::event::{self, Event, KeyCode};
 use std::fs;
 use std::time::{Duration, Instant};
 
 use crate::file_watcher::file_watcher::FileWatcher;
 use crate::markdown_serialiser::*;
-use crate::task_timer::{log_type::*, node::Node, traits::EventHandler, window::Window};
+use crate::task_timer::{InfoSubType, log_type::*, node::Node, traits::EventHandler, window::Window};
 
 #[derive(Default, PartialEq, Clone, Debug)]
 pub enum SessionState {
@@ -132,7 +132,7 @@ impl SessionManager {
                 self.last_update_tick = Instant::now();
             }
 
-            if self.last_save_tick.elapsed().as_secs() >= 1 {
+            if self.last_save_tick.elapsed().as_secs() >= 60 {
                 match self.save() {
                     Ok(()) => self.window.log(
                         &InfoSubType::Save.message(InfoSubType::Save),

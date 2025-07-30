@@ -12,6 +12,7 @@ use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
 
 use crate::task_timer::{
+    InfoSubType,
     log_type::*,
     node::Node,
     popups::*,

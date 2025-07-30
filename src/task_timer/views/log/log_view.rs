@@ -2,16 +2,17 @@ use crossterm::event::KeyCode;
 use ratatui::{
     prelude::{Buffer, Constraint, Layout, Rect, Stylize},
     text::Line,
-    widgets::Widget,
+    widgets::{Tabs, Widget},
 };
 
 use serde::{Deserialize, Serialize};
 
 use crate::task_timer::{
+    InfoSubType,
     log_type::*,
     traits::ViewEventHandler,
     views::{
-        log::{filter::Filter, time_stamp::TimeStamp},
+        log::{filter::Filter, subfilter::SubFilter, time_stamp::TimeStamp},
         paginator::Paginator,
     },
 };
@@ -50,6 +51,7 @@ pub struct LogView {
     pub logs: Vec<LogEntry>,
 
     selected_filter: Filter,
+    selected_subfilter: Option<SubFilter>,
     paginator: Paginator,
 }
 
@@ -59,9 +61,10 @@ impl LogView {
             logs: Vec::new(),
 
             selected_filter: Filter::default(),
+            selected_subfilter: None,
             paginator: Paginator {
                 page: 0,
-                page_size: 9,
+                page_size: 8,
                 entry_len: 0,
             },
         };
@@ -95,10 +98,26 @@ impl LogView {
 
     fn prev_filter(&mut self) {
         self.selected_filter = self.selected_filter.prev();
+        if self.selected_filter == Filter::INFO {
+            self.selected_subfilter = Some(SubFilter {
+                info_type: InfoSubType::General,
+                selected: true,
+            });
+        } else {
+            self.selected_subfilter = None;
+        }
     }
 
     fn next_filter(&mut self) {
         self.selected_filter = self.selected_filter.next();
+        if self.selected_filter == Filter::INFO {
+            self.selected_subfilter = Some(SubFilter {
+                info_type: InfoSubType::General,
+                selected: true,
+            });
+        } else {
+            self.selected_subfilter = None;
+        }
     }
 
     fn render_log_page(&self, area: Rect, buf: &mut Buffer) {
@@ -137,6 +156,27 @@ impl LogView {
             Line::from(dash_line.clone()).render(separator_area, buf);
         }
     }
+
+    fn present_subfilters(&self) -> Vec<SubFilter> {
+        let mut found_subtypes: Vec<SubFilter> = Vec::new();
+
+        for log in self.logs.iter() {
+            if let LogType::INFO(sub_type) = log.log_type {
+                let selected = sub_type == self.selected_subfilter.unwrap().info_type;
+
+                let entry = SubFilter {
+                    info_type: sub_type,
+                    selected,
+                };
+
+                if !found_subtypes.contains(&entry) {
+                    found_subtypes.push(entry);
+                }
+            }
+        }
+
+        return found_subtypes;
+    }
 }
 
 impl ViewEventHandler for LogView {
@@ -157,10 +197,14 @@ impl Widget for &LogView {
     fn render(self, area: Rect, buf: &mut Buffer) {
         use Constraint::{Length, Min};
 
-        let vertical = Layout::vertical([Length(2), Min(0), Length(1)]);
-        let [header_area, body_area, page_area] = vertical.areas(area);
+        let vertical = Layout::vertical([Length(2), Length(2), Min(0), Length(1)]);
+        let [filter_area, subfilter_area, body_area, page_area] = vertical.areas(area);
 
-        self.selected_filter.render(header_area, buf);
+        self.selected_filter.render(filter_area, buf);
+        if self.selected_subfilter.is_some() {
+            SubFilter::render_tabs(subfilter_area, buf, &self.present_subfilters());
+        }
+
         self.paginator.render(page_area, buf);
         self.render_log_page(body_area, buf);
     }
