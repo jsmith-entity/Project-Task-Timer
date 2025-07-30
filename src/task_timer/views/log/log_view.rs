@@ -2,7 +2,7 @@ use crossterm::event::KeyCode;
 use ratatui::{
     prelude::{Buffer, Constraint, Layout, Rect, Stylize},
     text::Line,
-    widgets::{Tabs, Widget},
+    widgets::Widget,
 };
 
 use serde::{Deserialize, Serialize};
@@ -52,6 +52,7 @@ pub struct LogView {
 
     selected_filter: Filter,
     selected_subfilter: Option<SubFilter>,
+    available_subfilters: Vec<SubFilter>,
     paginator: Paginator,
 }
 
@@ -62,12 +63,17 @@ impl LogView {
 
             selected_filter: Filter::default(),
             selected_subfilter: None,
+            available_subfilters: Vec::new(),
             paginator: Paginator {
                 page: 0,
                 page_size: 8,
                 entry_len: 0,
             },
         };
+    }
+
+    pub fn update(&mut self) {
+        self.available_subfilters = self.available_subfilters();
     }
 
     pub fn log(&mut self, message: &str, log_type: LogType) {
@@ -96,6 +102,31 @@ impl LogView {
         return recent_log.to_vec();
     }
 
+    fn available_subfilters(&self) -> Vec<SubFilter> {
+        let mut found_subtypes: Vec<SubFilter> = Vec::new();
+
+        if self.selected_subfilter.is_none() {
+            return found_subtypes;
+        }
+
+        for log in self.logs.iter() {
+            if let LogType::INFO(sub_type) = log.log_type {
+                let selected = sub_type == self.selected_subfilter.unwrap().info_type;
+
+                let entry = SubFilter {
+                    info_type: sub_type,
+                    selected,
+                };
+
+                if !found_subtypes.contains(&entry) {
+                    found_subtypes.push(entry);
+                }
+            }
+        }
+
+        return found_subtypes;
+    }
+
     fn prev_filter(&mut self) {
         self.selected_filter = self.selected_filter.prev();
         if self.selected_filter == Filter::INFO {
@@ -120,6 +151,54 @@ impl LogView {
         }
     }
 
+    fn prev_subfilter(&mut self) {
+        if self.selected_subfilter.is_none() {
+            return;
+        }
+
+        let current_subfilter = self.selected_subfilter.unwrap().info_type;
+        let found_idx = self
+            .available_subfilters
+            .iter()
+            .position(|e| e.info_type == current_subfilter);
+
+        if found_idx.is_some() {
+            let prev_idx = if found_idx.unwrap() == 0 {
+                self.available_subfilters.len() - 1
+            } else {
+                found_idx.unwrap() - 1
+            };
+            self.selected_subfilter = Some(self.available_subfilters[prev_idx]);
+        } else {
+            self.log(
+                "Could not select previous subfilter. Current subfilter not found",
+                LogType::ERROR,
+            );
+        }
+    }
+
+    fn next_subfilter(&mut self) {
+        if self.selected_subfilter.is_none() {
+            return;
+        }
+
+        let current_subfilter = self.selected_subfilter.unwrap().info_type;
+        let found_idx = self
+            .available_subfilters
+            .iter()
+            .position(|e| e.info_type == current_subfilter);
+
+        if found_idx.is_some() {
+            let next_idx = found_idx.unwrap().wrapping_add(1) % self.available_subfilters.len();
+            self.selected_subfilter = Some(self.available_subfilters[next_idx]);
+        } else {
+            self.log(
+                "Could not select next subfilter. Current subfilter not found",
+                LogType::ERROR,
+            );
+        }
+    }
+
     fn render_log_page(&self, area: Rect, buf: &mut Buffer) {
         let (start_idx, end_idx) = self.paginator.page_slice();
 
@@ -132,6 +211,14 @@ impl LogView {
         for entry in self.logs[start_idx..end_idx].iter().rev() {
             if !self.selected_filter.includes(entry.log_type) {
                 continue;
+            }
+
+            if self.selected_subfilter.is_some() {
+                if let LogType::INFO(subtype) = entry.log_type {
+                    if subtype != self.selected_subfilter.unwrap().info_type {
+                        continue;
+                    }
+                }
             }
 
             let entry_area = Rect {
@@ -156,27 +243,6 @@ impl LogView {
             Line::from(dash_line.clone()).render(separator_area, buf);
         }
     }
-
-    fn present_subfilters(&self) -> Vec<SubFilter> {
-        let mut found_subtypes: Vec<SubFilter> = Vec::new();
-
-        for log in self.logs.iter() {
-            if let LogType::INFO(sub_type) = log.log_type {
-                let selected = sub_type == self.selected_subfilter.unwrap().info_type;
-
-                let entry = SubFilter {
-                    info_type: sub_type,
-                    selected,
-                };
-
-                if !found_subtypes.contains(&entry) {
-                    found_subtypes.push(entry);
-                }
-            }
-        }
-
-        return found_subtypes;
-    }
 }
 
 impl ViewEventHandler for LogView {
@@ -184,6 +250,8 @@ impl ViewEventHandler for LogView {
         match key_code {
             KeyCode::Char('h') => self.prev_filter(),
             KeyCode::Char('l') => self.next_filter(),
+            KeyCode::Char('H') => self.prev_subfilter(),
+            KeyCode::Char('L') => self.next_subfilter(),
             KeyCode::Char('j') => self.paginator.next_page(),
             KeyCode::Char('k') => self.paginator.prev_page(),
             _ => (),
@@ -202,7 +270,7 @@ impl Widget for &LogView {
 
         self.selected_filter.render(filter_area, buf);
         if self.selected_subfilter.is_some() {
-            SubFilter::render_tabs(subfilter_area, buf, &self.present_subfilters());
+            SubFilter::render_tabs(subfilter_area, buf, &self.available_subfilters);
         }
 
         self.paginator.render(page_area, buf);

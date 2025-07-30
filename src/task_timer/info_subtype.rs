@@ -1,7 +1,4 @@
-use ratatui::{
-    style::{Color, Modifier, Style},
-    text::{Line, Span},
-};
+use ratatui::{prelude::Stylize, style::Color, text::Line};
 
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumIter, FromRepr};
@@ -45,26 +42,19 @@ impl InfoSubType {
         .to_string();
     }
 
+    pub fn prev(self) -> Self {
+        let current_index: usize = self as usize;
+        let previous_index = current_index.saturating_sub(1);
+        Self::from_repr(previous_index).unwrap_or(self)
+    }
+
+    pub fn next(self) -> Self {
+        let current_index = self as usize;
+        let next_index = current_index.saturating_add(1);
+        Self::from_repr(next_index).unwrap_or(self)
+    }
+
     pub fn title(self) -> Line<'static> {
-        let text = format! {"{self}"};
-
-        let mut chars = text.chars();
-        let first_char = chars.next().unwrap_or_default().to_string();
-        let remaining_chars: String = chars.collect();
-
-        let first_span = Span::styled(
-            format!("  {}", first_char),
-            Style::default()
-                .fg(Color::Black)
-                .bg(Color::DarkGray)
-                .add_modifier(Modifier::BOLD),
-        );
-
-        let remaining_span = Span::styled(
-            format!("{}  ", remaining_chars),
-            Style::default().fg(Color::Black).bg(Color::DarkGray),
-        );
-
-        return Line::from(vec![first_span, remaining_span]);
+        return format!("  {self}  ").fg(Color::Black).bg(Color::DarkGray).into();
     }
 }

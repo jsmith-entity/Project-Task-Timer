@@ -1,7 +1,6 @@
 use ratatui::{
-    prelude::{Buffer, Rect, Stylize},
-    style::{Color, Style},
-    text::Span,
+    prelude::{Buffer, Rect},
+    style::Color,
     widgets::{Tabs, Widget},
 };
 
@@ -25,6 +24,7 @@ impl SubFilter {
         Tabs::new(filter_iter)
             .highlight_style(highlight_style)
             .select(selected_filter_idx)
+            .padding("", "")
             .divider(" ")
             .render(area, buf);
     }

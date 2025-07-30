@@ -99,6 +99,7 @@ impl Window {
 
     pub fn update(&mut self) {
         self.task_view.update();
+        self.logger.update();
     }
 
     pub fn update_tree(&mut self, new_root: Node) {
