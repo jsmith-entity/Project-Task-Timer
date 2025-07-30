@@ -13,7 +13,7 @@ struct ControlSection {
 
 impl Widget for &ControlSection {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        const LINE_LENGTH: u16 = 20;
+        const LINE_LENGTH: u16 = 30;
 
         Line::from(self.title.clone()).render(area, buf);
 
@@ -73,11 +73,14 @@ impl Controls {
 
     fn define_main_controls() -> Vec<(String, String)> {
         return vec![
-            ("↵".to_string(), "Toggle Heading".to_string()),
+            ("j".to_string(), "Next Line".to_string()),
+            ("k".to_string(), "Previous Line".to_string()),
+            ("J".to_string(), "Next Page".to_string()),
+            ("K".to_string(), "Previous Page".to_string()),
+            ("↵".to_string(), "Enter Heading".to_string()),
             ("␣".to_string(), "Complete Task".to_string()),
             ("s".to_string(), "Toggle Time".to_string()),
-            ("o".to_string(), "Open Headings".to_string()),
-            ("c".to_string(), "Close Headings".to_string()),
+            ("b".to_string(), "Ender Parent Heading".to_string()),
         ];
     }
 
@@ -85,6 +88,10 @@ impl Controls {
         return vec![
             ("h".to_string(), "Previous Filter".to_string()),
             ("l".to_string(), "Next Filter".to_string()),
+            ("H".to_string(), "Previous Subfilter".to_string()),
+            ("L".to_string(), "Next Subfilter".to_string()),
+            ("j".to_string(), "Next Log Page".to_string()),
+            ("k".to_string(), "Previous Log Page ".to_string()),
         ];
     }
 }

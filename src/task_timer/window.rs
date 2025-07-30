@@ -23,11 +23,11 @@ use crate::task_timer::{
 
 #[derive(Serialize, Deserialize, EnumIter, Display, Clone, Copy, PartialEq)]
 enum SelectedTab {
-    #[strum(to_string = "Main")]
+    #[strum(to_string = "(1) Main")]
     Tab1,
-    #[strum(to_string = "Log")]
+    #[strum(to_string = "(2) Log")]
     Tab2,
-    #[strum(to_string = "Controls")]
+    #[strum(to_string = "(3) Controls")]
     Tab3,
 }
 
