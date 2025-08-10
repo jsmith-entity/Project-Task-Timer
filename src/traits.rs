@@ -1,6 +1,6 @@
 use crossterm::event::KeyCode;
 
-use crate::components::SessionState;
+use crate::app::SessionState;
 use crate::info_subtype::InfoSubType;
 
 pub trait EventHandler {

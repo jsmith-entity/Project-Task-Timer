@@ -7,7 +7,7 @@ use crate::markdown_serialiser::*;
 
 use crate::{info_subtype::InfoSubType, log_type::LogType, node::Node, traits::EventHandler};
 
-use super::Window;
+use crate::components::Window;
 
 #[derive(Default, PartialEq, Clone, Debug)]
 pub enum SessionState {
@@ -17,7 +17,7 @@ pub enum SessionState {
     Quitting,
 }
 
-pub struct SessionManager {
+pub struct App {
     file_watcher: Option<FileWatcher>,
     root_node: Node,
     window: Window,
@@ -28,7 +28,7 @@ pub struct SessionManager {
     session_state: SessionState,
 }
 
-impl SessionManager {
+impl App {
     pub fn new() -> Self {
         Self {
             file_watcher: None,
@@ -210,7 +210,7 @@ impl SessionManager {
     }
 }
 
-impl EventHandler for SessionManager {
+impl EventHandler for App {
     fn handle_events(&mut self, key_code: KeyCode) -> SessionState {
         return self.window.handle_events(key_code);
     }

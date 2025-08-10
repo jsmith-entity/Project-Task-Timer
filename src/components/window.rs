@@ -12,13 +12,14 @@ use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
 
 use crate::{
+    app::SessionState,
     info_subtype::InfoSubType,
     log_type::LogType,
     node::Node,
     traits::{EventHandler, ViewEventHandler},
 };
 
-use super::{Controls, LogView, PopupType, SessionState, TaskView};
+use super::{Controls, LogView, PopupType, TaskView};
 
 #[derive(Serialize, Deserialize, EnumIter, Display, Clone, Copy, PartialEq)]
 enum SelectedTab {
