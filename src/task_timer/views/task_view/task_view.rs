@@ -11,12 +11,8 @@ use crossterm::event::KeyCode;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-use crate::task_timer::{
-    InfoSubType,
-    node::{Node, NodePath},
-    traits::ViewEventHandler,
-    views::paginator::Paginator,
-};
+use crate::task_timer::views::Paginator;
+use crate::task_timer::{InfoSubType, Node, NodePath, ViewEventHandler};
 
 use super::{NavigationBar, Tasks};
 

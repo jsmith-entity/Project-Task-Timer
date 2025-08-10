@@ -1,6 +1,6 @@
 use crossterm::event::KeyCode;
 
-use crate::task_timer::{InfoSubType, session_manager::SessionState};
+use super::{InfoSubType, SessionState};
 
 pub trait EventHandler {
     fn handle_events(&mut self, key_code: KeyCode) -> SessionState;
