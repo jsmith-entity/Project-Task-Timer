@@ -1,16 +1,80 @@
+use crate::log_type::LogType;
+
 use crossterm::event::KeyCode;
 use ratatui::{
     prelude::{Buffer, Constraint, Layout, Rect, Stylize},
+    style::Color,
     text::Line,
-    widgets::Widget,
+    widgets::{Tabs, Widget},
 };
 
+use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
+use strum::IntoEnumIterator;
+use strum_macros::{Display, EnumIter, FromRepr};
 
-use crate::{info_subtype::InfoSubType, log_type::LogType, traits::ViewEventHandler};
+use crate::{info_subtype::InfoSubType, traits::ViewEventHandler};
 
-use crate::components::views::Paginator;
-use crate::components::views::log::{Filter, SubFilter, TimeStamp};
+use super::Paginator;
+
+#[derive(Serialize, Deserialize, Default, EnumIter, Display, Clone, Copy, FromRepr, PartialEq)]
+pub enum Filter {
+    #[default]
+    #[strum(to_string = "All")]
+    ALL,
+    #[strum(to_string = "Info")]
+    INFO,
+    #[strum(to_string = "Error")]
+    ERROR,
+}
+
+impl Filter {
+    pub fn prev(self) -> Self {
+        let current_index: usize = self as usize;
+        let previous_index = current_index.saturating_sub(1);
+        Self::from_repr(previous_index).unwrap_or(self)
+    }
+
+    pub fn next(self) -> Self {
+        let current_index = self as usize;
+        let next_index = current_index.saturating_add(1);
+        Self::from_repr(next_index).unwrap_or(self)
+    }
+
+    fn title(self) -> Line<'static> {
+        return format!("  {self}  ").fg(Color::Black).bg(Color::DarkGray).into();
+    }
+
+    pub fn includes(self, log_type: LogType) -> bool {
+        let mut includes_filter = false;
+
+        if self == Filter::ALL {
+            includes_filter = true;
+        } else if matches!(log_type, LogType::INFO(_)) && self == Filter::INFO {
+            includes_filter = true;
+        } else if log_type == LogType::ERROR && self == Filter::ERROR {
+            includes_filter = true;
+        }
+
+        return includes_filter;
+    }
+}
+
+impl Widget for &Filter {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        let titles = Filter::iter().map(Filter::title);
+
+        let selected_tab_idx = *self as usize;
+        let highlight_style = (Color::Black, Color::Gray);
+
+        Tabs::new(titles)
+            .highlight_style(highlight_style)
+            .select(selected_tab_idx)
+            .padding("", "")
+            .divider(" ")
+            .render(area, buf);
+    }
+}
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct LogEntry {
@@ -38,6 +102,57 @@ impl Widget for &LogEntry {
         Line::from(time).render(subtype_area, buf);
 
         Line::from(format!("{}", self.message.clone())).render(content, buf);
+    }
+}
+
+#[derive(Serialize, Deserialize, Default, PartialEq, Clone, Copy)]
+pub struct SubFilter {
+    pub info_type: InfoSubType,
+    pub selected: bool,
+}
+
+impl SubFilter {
+    pub fn render_tabs(area: Rect, buf: &mut Buffer, available_filters: &Vec<SubFilter>) {
+        let filter_iter = available_filters.iter().map(|e| e.info_type.title());
+
+        let selected_filter_idx = available_filters.iter().position(|e| e.selected);
+        let highlight_style = (Color::Black, Color::Gray);
+
+        Tabs::new(filter_iter)
+            .highlight_style(highlight_style)
+            .select(selected_filter_idx)
+            .padding("", "")
+            .divider(" ")
+            .render(area, buf);
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct TimeStamp {
+    day: u32,
+    month: String,
+    hours: u32,
+    minutes: u32,
+    seconds: u32,
+}
+
+impl TimeStamp {
+    pub fn new() -> Self {
+        let current_time = Local::now();
+        return Self {
+            day: current_time.day(),
+            month: current_time.format("%B").to_string(),
+            hours: current_time.hour(),
+            minutes: current_time.minute(),
+            seconds: current_time.second(),
+        };
+    }
+
+    pub fn print(&self) -> String {
+        return format!(
+            "{} {}: {:02}:{:02}:{:02}",
+            self.day, self.month, self.hours, self.minutes, self.seconds
+        );
     }
 }
 
