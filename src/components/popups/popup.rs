@@ -1,7 +1,7 @@
 use crossterm::event::KeyCode;
 use serde::{Deserialize, Serialize};
 
-use crate::task_timer::session_manager::SessionState;
+use crate::app::SessionState;
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Copy)]
 pub enum PopupType {

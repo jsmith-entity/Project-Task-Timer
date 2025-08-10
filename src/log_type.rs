@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use strum_macros::{Display, EnumIter};
 
-use crate::task_timer::InfoSubType;
+use crate::info_subtype::InfoSubType;
 
 #[derive(Serialize, Deserialize, EnumIter, Display, Clone, Copy, PartialEq)]
 pub enum LogType {

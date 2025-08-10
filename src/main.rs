@@ -1,14 +1,20 @@
 mod file_watcher;
 mod markdown_serialiser;
-mod task_timer;
+
+mod app;
+mod components;
+mod info_subtype;
+mod log_type;
+mod node;
+mod traits;
+
+use crate::app::App;
 
 use std::env;
 
-use task_timer::session_manager::SessionManager;
-
 fn main() {
     if let Some(file_name) = extract_file_name() {
-        let mut s_manager = SessionManager::new();
+        let mut s_manager = App::new();
 
         let res = s_manager.attach_file_watcher(&file_name);
         if let Ok(_) = res {

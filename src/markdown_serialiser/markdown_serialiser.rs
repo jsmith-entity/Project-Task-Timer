@@ -1,6 +1,6 @@
 use std::fs;
 
-use crate::task_timer::node::Node;
+use crate::node::Node;
 
 pub fn export(root_node: Node, file_name: String) {
     let mut contents = String::new();

@@ -11,15 +11,15 @@ use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
 
-use crate::task_timer::{
-    InfoSubType,
-    log_type::*,
+use crate::{
+    app::SessionState,
+    info_subtype::InfoSubType,
+    log_type::LogType,
     node::Node,
-    popups::*,
-    session_manager::SessionState,
-    traits::*,
-    views::{controls::*, log::log_view::*, task_view::task_view::TaskView},
+    traits::{EventHandler, ViewEventHandler},
 };
+
+use super::{Controls, LogView, PopupType, TaskView};
 
 #[derive(Serialize, Deserialize, EnumIter, Display, Clone, Copy, PartialEq)]
 enum SelectedTab {
