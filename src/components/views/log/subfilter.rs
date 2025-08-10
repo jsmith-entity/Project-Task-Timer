@@ -6,7 +6,7 @@ use ratatui::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::task_timer::InfoSubType;
+use crate::info_subtype::InfoSubType;
 
 #[derive(Serialize, Deserialize, Default, PartialEq, Clone, Copy)]
 pub struct SubFilter {

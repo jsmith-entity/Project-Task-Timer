@@ -5,7 +5,9 @@ use std::time::{Duration, Instant};
 use crate::file_watcher::file_watcher::FileWatcher;
 use crate::markdown_serialiser::*;
 
-use super::{EventHandler, InfoSubType, LogType, Node, Window};
+use crate::{info_subtype::InfoSubType, log_type::LogType, node::Node, traits::EventHandler};
+
+use super::Window;
 
 #[derive(Default, PartialEq, Clone, Debug)]
 pub enum SessionState {

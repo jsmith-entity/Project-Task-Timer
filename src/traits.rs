@@ -1,6 +1,7 @@
 use crossterm::event::KeyCode;
 
-use super::{InfoSubType, SessionState};
+use crate::components::SessionState;
+use crate::info_subtype::InfoSubType;
 
 pub trait EventHandler {
     fn handle_events(&mut self, key_code: KeyCode) -> SessionState;

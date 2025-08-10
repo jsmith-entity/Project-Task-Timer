@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
-use crate::task_timer::{InfoSubType, Node};
+use crate::{info_subtype::InfoSubType, node::Node};
 
 use super::Task;
 

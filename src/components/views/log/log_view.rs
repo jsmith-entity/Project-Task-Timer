@@ -7,10 +7,10 @@ use ratatui::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::task_timer::{InfoSubType, LogType, ViewEventHandler};
+use crate::{info_subtype::InfoSubType, log_type::LogType, traits::ViewEventHandler};
 
-use crate::task_timer::views::Paginator;
-use crate::task_timer::views::log::{Filter, SubFilter, TimeStamp};
+use crate::components::views::Paginator;
+use crate::components::views::log::{Filter, SubFilter, TimeStamp};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct LogEntry {

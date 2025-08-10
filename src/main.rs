@@ -1,10 +1,16 @@
 mod file_watcher;
 mod markdown_serialiser;
-mod task_timer;
+
+mod info_subtype;
+mod log_type;
+mod node;
+mod traits;
+
+mod components;
+
+use crate::components::SessionManager;
 
 use std::env;
-
-use task_timer::session_manager::SessionManager;
 
 fn main() {
     if let Some(file_name) = extract_file_name() {
