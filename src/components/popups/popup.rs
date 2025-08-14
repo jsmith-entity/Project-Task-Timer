@@ -1,7 +1,7 @@
 use crossterm::event::KeyCode;
 use serde::{Deserialize, Serialize};
 
-use crate::app::SessionState;
+use crate::events::*;
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Copy)]
 pub enum PopupType {
@@ -10,18 +10,8 @@ pub enum PopupType {
 }
 
 impl PopupType {
-    pub fn handle_events(&self, key_code: KeyCode) -> SessionState {
-        return match self {
-            PopupType::ConfirmQuit => PopupType::confirm_quit(key_code),
-            _ => SessionState::Running,
-        };
-    }
-
-    fn confirm_quit(key_code: KeyCode) -> SessionState {
-        return match key_code {
-            KeyCode::Char('y') => SessionState::Quitting,
-            KeyCode::Char('n') => SessionState::Running,
-            _ => SessionState::AwaitingPrompt,
-        };
+    pub async fn event(&mut self, key: KeyCode) -> anyhow::Result<EventState> {
+        // TODO: Popup events
+        return Ok(EventState::NotConsumed);
     }
 }

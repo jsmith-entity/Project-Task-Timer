@@ -14,6 +14,8 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 use crate::{
+    config::KeyConfig,
+    events::*,
     info_subtype::InfoSubType,
     node::{Node, NodePath},
     traits::ViewEventHandler,
@@ -324,10 +326,13 @@ pub struct TaskView {
     selected_line: u16,
 
     nav_bar: NavigationBar,
+
+    #[serde(skip)]
+    key_config: KeyConfig,
 }
 
 impl TaskView {
-    pub fn new() -> Self {
+    pub fn new(key_config: KeyConfig) -> Self {
         return Self {
             root_node: Node::new(),
             content_area: Rect::default(),
@@ -344,10 +349,11 @@ impl TaskView {
             selected_line: 1,
 
             nav_bar: NavigationBar::new(),
+            key_config,
         };
     }
 
-    pub fn new_with(task_view: TaskView) -> Self {
+    pub fn new_with(task_view: TaskView, key_config: KeyConfig) -> Self {
         return Self {
             root_node: task_view.root_node,
             content_area: Rect::default(),
@@ -360,6 +366,7 @@ impl TaskView {
             selected_line: task_view.selected_line,
 
             nav_bar: task_view.nav_bar,
+            key_config,
         };
     }
 
@@ -517,36 +524,55 @@ impl TaskView {
             self.nav_bar.push_breadcrumb(new_breadcrumb);
         }
     }
-}
 
-impl ViewEventHandler for TaskView {
-    fn handle_events(&mut self, key_code: KeyCode) -> Result<(InfoSubType, String), String> {
-        match key_code {
-            KeyCode::Char('j') => self.select_line(self.selected_line + 1),
-            KeyCode::Char('k') => self.select_line(self.selected_line - 1),
-            KeyCode::Char('J') => {
-                self.paginator.next_page();
-                let (page_start, page_end) = self.paginator.page_slice();
-
-                self.tasks.slice_bounds(page_start, page_end);
-                self.selected_line = 1;
-            }
-            KeyCode::Char('K') => {
-                self.paginator.prev_page();
-                let (page_start, page_end) = self.paginator.page_slice();
-                self.tasks.slice_bounds(page_start, page_end);
-                self.selected_line = self.content_height;
-            }
-            _ => (),
+    pub async fn event(&mut self, key: KeyCode) -> anyhow::Result<EventState> {
+        if key == self.key_config.down {
+            self.select_line(self.selected_line + 1);
+            return Ok(EventState::Consumed);
         }
 
-        return match key_code {
-            KeyCode::Char('s') => self.tasks.try_activate(),
-            KeyCode::Char(' ') => self.toggle_task(),
-            KeyCode::Char('b') => self.enter_prev_node(),
-            KeyCode::Enter => self.enter_next_node(),
-            _ => Ok((InfoSubType::None, "erm".to_string())),
-        };
+        if key == self.key_config.up {
+            self.select_line(self.selected_line - 1);
+            return Ok(EventState::Consumed);
+        }
+
+        if key == self.key_config.page_down {
+            self.paginator.next_page();
+            let (page_start, page_end) = self.paginator.page_slice();
+            self.tasks.slice_bounds(page_start, page_end);
+            self.selected_line = 1;
+            return Ok(EventState::Consumed);
+        }
+
+        if key == self.key_config.page_up {
+            self.paginator.prev_page();
+            let (page_start, page_end) = self.paginator.page_slice();
+            self.tasks.slice_bounds(page_start, page_end);
+            self.selected_line = self.content_height;
+            return Ok(EventState::Consumed);
+        }
+
+        if key == self.key_config.start_timer {
+            self.tasks.try_activate();
+            return Ok(EventState::Consumed);
+        }
+
+        if key == self.key_config.complete {
+            self.toggle_task();
+            return Ok(EventState::Consumed);
+        }
+
+        if key == self.key_config.back {
+            self.enter_prev_node();
+            return Ok(EventState::Consumed);
+        }
+
+        if key == self.key_config.enter {
+            self.enter_next_node();
+            return Ok(EventState::Consumed);
+        }
+
+        return Ok(EventState::NotConsumed);
     }
 }
 

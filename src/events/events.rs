@@ -35,3 +35,15 @@ impl Events {
         return self.rx.recv();
     }
 }
+
+#[derive(PartialEq, Eq)]
+pub enum EventState {
+    Consumed,
+    NotConsumed,
+}
+
+impl EventState {
+    pub fn is_consumed(&self) -> bool {
+        return *self == Self::Consumed;
+    }
+}

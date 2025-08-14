@@ -14,12 +14,12 @@ use std::env;
 use std::time::Duration;
 
 use anyhow::anyhow;
-use crossterm::event::KeyCode;
 
 use crate::file_watcher::FileWatcher;
-use crate::{app::App, config::KeyConfig, events::*, node::Node, traits::EventHandler};
+use crate::{app::App, config::KeyConfig, events::*, node::Node};
 
-fn main() -> anyhow::Result<()> {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     let file_name = extract_file_name()?;
     let mut file_watcher = FileWatcher::new(&file_name)?;
 
@@ -44,13 +44,16 @@ fn main() -> anyhow::Result<()> {
         app.update();
 
         match events.next()? {
-            InputEvent::Input(key) => {
-                if key.code == KeyCode::Esc {
-                    break;
+            InputEvent::Input(key) => match app.event(key.code).await {
+                Ok(state) => {
+                    if !state.is_consumed() && key.code == app.key_config.quit {
+                        break;
+                    }
                 }
-
-                app.handle_events(key.code);
-            }
+                Err(e) => {
+                    println!("Error");
+                }
+            },
             InputEvent::Tick => (),
         }
     }

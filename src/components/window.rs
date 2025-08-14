@@ -12,11 +12,7 @@ use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
 
 use crate::{
-    app::SessionState,
-    info_subtype::InfoSubType,
-    log_type::LogType,
-    node::Node,
-    traits::{EventHandler, ViewEventHandler},
+    app::SessionState, config::KeyConfig, events::*, log_type::LogType, node::Node, traits::EventHandler,
 };
 
 use super::{Controls, LogView, PopupType, TaskView};
@@ -64,27 +60,30 @@ pub struct Window {
     #[serde(skip)]
     controls: Controls,
     popup: PopupType,
+    #[serde(skip)]
+    key_config: KeyConfig,
 }
 
 impl Window {
-    pub fn new(title: &str) -> Self {
+    pub fn new(title: &str, key_config: KeyConfig) -> Self {
         Self {
             title: title.to_string(),
 
-            task_view: TaskView::new(),
+            task_view: TaskView::new(key_config),
 
             controls: Controls::new(),
-            logger: LogView::new(),
+            logger: LogView::new(key_config),
 
             selected_tab: SelectedTab::Tab1,
             popup: PopupType::None,
+            key_config,
         }
     }
 
-    pub fn load(&mut self, window: Window) {
+    pub fn load(&mut self, window: Window, key_config: KeyConfig) {
         self.title = window.title;
 
-        self.task_view = TaskView::new_with(window.task_view);
+        self.task_view = TaskView::new_with(window.task_view, key_config);
 
         self.controls = Controls::new();
         self.logger = window.logger;
@@ -116,54 +115,49 @@ impl Window {
     pub fn extract_node(&self) -> Node {
         return self.task_view.root_node.clone();
     }
-}
 
-impl EventHandler for Window {
-    fn handle_events(&mut self, key_code: KeyCode) -> SessionState {
-        let new_state: SessionState;
-
-        if self.popup != PopupType::None {
-            new_state = self.popup.handle_events(key_code);
-            if new_state != SessionState::AwaitingPrompt {
-                self.popup = PopupType::None;
-            }
-        } else {
-            new_state = match key_code {
-                KeyCode::Char('1') => {
-                    self.selected_tab = SelectedTab::Tab1;
-                    SessionState::Running
-                }
-                KeyCode::Char('2') => {
-                    self.selected_tab = SelectedTab::Tab2;
-                    SessionState::Running
-                }
-                KeyCode::Char('3') => {
-                    self.selected_tab = SelectedTab::Tab3;
-                    SessionState::Running
-                }
-                KeyCode::Esc => {
-                    self.popup = PopupType::ConfirmQuit;
-                    SessionState::AwaitingPrompt
-                }
-                _ => SessionState::Running,
-            };
-
-            let res = match self.selected_tab {
-                SelectedTab::Tab1 => self.task_view.handle_events(key_code),
-                SelectedTab::Tab2 => self.logger.handle_events(key_code),
-                _ => Ok((InfoSubType::None, "erm".to_string())),
-            };
-            match res {
-                Ok((log_type, info)) => {
-                    if log_type != InfoSubType::None {
-                        self.log(&log_type.message(info), LogType::INFO(log_type));
-                    }
-                }
-                Err(e) => self.log(&e, LogType::ERROR),
-            }
+    pub async fn event(&mut self, key: KeyCode) -> anyhow::Result<EventState> {
+        if self.popup.event(key).await?.is_consumed() {
+            return Ok(EventState::Consumed);
         }
 
-        return new_state;
+        if key == self.key_config.tab_main {
+            self.selected_tab = SelectedTab::Tab1;
+            return Ok(EventState::Consumed);
+        }
+        if key == self.key_config.tab_log {
+            self.selected_tab = SelectedTab::Tab2;
+            return Ok(EventState::Consumed);
+        }
+        if key == self.key_config.tab_controls {
+            self.selected_tab = SelectedTab::Tab3;
+            return Ok(EventState::Consumed);
+        }
+
+        match self.selected_tab {
+            SelectedTab::Tab1 => {
+                if self.task_view.event(key).await?.is_consumed() {
+                    return Ok(EventState::Consumed);
+                };
+            }
+            SelectedTab::Tab2 => {
+                if self.logger.event(key).await?.is_consumed() {
+                    return Ok(EventState::Consumed);
+                }
+            }
+            _ => (),
+        }
+
+        return Ok(EventState::NotConsumed);
+
+        // match res {
+        //     Ok((log_type, info)) => {
+        //         if log_type != InfoSubType::None {
+        //             self.log(&log_type.message(info), LogType::INFO(log_type));
+        //         }
+        //     }
+        //     Err(e) => self.log(&e, LogType::ERROR),
+        // }
     }
 }
 

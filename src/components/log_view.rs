@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter, FromRepr};
 
-use crate::{info_subtype::InfoSubType, traits::ViewEventHandler};
+use crate::{config::KeyConfig, events::*, info_subtype::InfoSubType};
 
 use super::Paginator;
 
@@ -164,10 +164,12 @@ pub struct LogView {
     selected_subfilter: Option<SubFilter>,
     available_subfilters: Vec<SubFilter>,
     paginator: Paginator,
+    #[serde(skip)]
+    pub key_config: KeyConfig,
 }
 
 impl LogView {
-    pub fn new() -> Self {
+    pub fn new(key_config: KeyConfig) -> Self {
         return Self {
             logs: Vec::new(),
 
@@ -179,6 +181,7 @@ impl LogView {
                 page_size: 8,
                 entry_len: 0,
             },
+            key_config,
         };
     }
 
@@ -353,21 +356,39 @@ impl LogView {
             Line::from(dash_line.clone()).render(separator_area, buf);
         }
     }
-}
 
-impl ViewEventHandler for LogView {
-    fn handle_events(&mut self, key_code: KeyCode) -> Result<(InfoSubType, String), String> {
-        match key_code {
-            KeyCode::Char('h') => self.prev_filter(),
-            KeyCode::Char('l') => self.next_filter(),
-            KeyCode::Char('H') => self.prev_subfilter(),
-            KeyCode::Char('L') => self.next_subfilter(),
-            KeyCode::Char('j') => self.paginator.next_page(),
-            KeyCode::Char('k') => self.paginator.prev_page(),
-            _ => (),
+    pub async fn event(&mut self, key: KeyCode) -> anyhow::Result<EventState> {
+        if key == self.key_config.left {
+            self.prev_filter();
+            return Ok(EventState::Consumed);
         }
 
-        return Ok((InfoSubType::None, "erm".to_string()));
+        if key == self.key_config.right {
+            self.next_filter();
+            return Ok(EventState::Consumed);
+        }
+
+        if key == self.key_config.prev_subfilter {
+            self.prev_subfilter();
+            return Ok(EventState::Consumed);
+        }
+
+        if key == self.key_config.next_subfilter {
+            self.next_subfilter();
+            return Ok(EventState::Consumed);
+        }
+
+        if key == self.key_config.page_down {
+            self.paginator.next_page();
+            return Ok(EventState::Consumed);
+        }
+
+        if key == self.key_config.page_up {
+            self.paginator.prev_page();
+            return Ok(EventState::Consumed);
+        }
+
+        return Ok(EventState::NotConsumed);
     }
 }
 

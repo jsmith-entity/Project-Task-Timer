@@ -1,13 +1,13 @@
-use crossterm::event::{self, Event, KeyCode};
+use crossterm::event::{KeyCode, KeyEvent};
 use std::fs;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use crate::file_watcher::file_info::FileInfo;
 use crate::markdown_serialiser::*;
 
 use crate::{
-    components::Window, config::KeyConfig, info_subtype::InfoSubType, log_type::LogType, node::Node,
-    traits::EventHandler,
+    components::Window, config::KeyConfig, events::*, info_subtype::InfoSubType, log_type::LogType,
+    node::Node, traits::EventHandler,
 };
 
 #[derive(Default, PartialEq, Clone, Debug)]
@@ -20,6 +20,7 @@ pub enum SessionState {
 
 pub struct App {
     pub window: Window,
+    pub key_config: KeyConfig,
     file_info: FileInfo,
     root_node: Node,
 
@@ -27,15 +28,13 @@ pub struct App {
     last_save_tick: Instant,
 
     session_state: SessionState,
-
-    key_config: KeyConfig,
 }
 
 impl App {
     pub fn new(file_info: FileInfo, root_node: Node, key_config: KeyConfig) -> Self {
         let window_title = file_info.project_dir_name();
         let mut app = App {
-            window: Window::new(&window_title),
+            window: Window::new(&window_title, key_config),
             file_info,
             root_node: root_node.clone(),
 
@@ -43,7 +42,7 @@ impl App {
             last_save_tick: Instant::now(),
 
             session_state: SessionState::default(),
-            key_config: key_config,
+            key_config,
         };
 
         app.window.update_tree(root_node);
@@ -79,7 +78,7 @@ impl App {
 
         if let Ok(save_contents) = fs::read_to_string(save_file) {
             let deserialised: Window = serde_json::from_str(&save_contents).unwrap();
-            self.window.load(deserialised);
+            self.window.load(deserialised, self.key_config);
             self.window
                 .log("Retrieved save file.", LogType::INFO(InfoSubType::General));
         } else {
@@ -144,10 +143,12 @@ impl App {
 
         return Ok(());
     }
-}
 
-impl EventHandler for App {
-    fn handle_events(&mut self, key_code: KeyCode) -> SessionState {
-        return self.window.handle_events(key_code);
+    pub async fn event(&mut self, key: KeyCode) -> anyhow::Result<EventState> {
+        if self.window.event(key).await?.is_consumed() {
+            return Ok(EventState::Consumed);
+        }
+
+        return Ok(EventState::NotConsumed);
     }
 }
