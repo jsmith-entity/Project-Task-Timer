@@ -1,16 +1,37 @@
 use crossterm::{event, event::KeyEvent};
 
-use std::time::Duration;
+use std::{sync::mpsc, thread, time::Duration};
 
-// TODO: threaded
-pub fn next_key_event(tick_rate: Duration) -> Option<KeyEvent> {
-    if event::poll(tick_rate).unwrap() {
-        if let Ok(ev) = event::read() {
-            return ev.as_key_event();
-        } else {
-            return None;
-        }
-    } else {
-        return None;
+pub enum InputEvent {
+    Input(KeyEvent),
+    Tick,
+}
+
+pub struct Events {
+    rx: mpsc::Receiver<InputEvent>,
+    _tx: mpsc::Sender<InputEvent>,
+}
+
+impl Events {
+    pub fn new(tick_rate: Duration) -> Self {
+        let (tx, rx) = mpsc::channel();
+
+        let event_tx = tx.clone();
+        thread::spawn(move || {
+            loop {
+                if crossterm::event::poll(tick_rate).unwrap() {
+                    if let event::Event::Key(key) = event::read().unwrap() {
+                        event_tx.send(InputEvent::Input(key)).unwrap();
+                    }
+                }
+                event_tx.send(InputEvent::Tick).unwrap();
+            }
+        });
+
+        return Self { rx, _tx: tx };
+    }
+
+    pub fn next(&self) -> Result<InputEvent, mpsc::RecvError> {
+        return self.rx.recv();
     }
 }
