@@ -67,9 +67,9 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new() -> Self {
+    pub fn new(title: &str) -> Self {
         Self {
-            title: "???".to_string(),
+            title: title.to_string(),
 
             task_view: TaskView::new(),
 

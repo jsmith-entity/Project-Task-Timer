@@ -4,6 +4,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{Receiver, channel};
 
+use crate::node::Node;
+
+use super::FileInfo;
+
 pub struct FileWatcher {
     pub file_name: String,
     pub file_path: PathBuf,
@@ -17,6 +21,8 @@ impl FileWatcher {
             notify::Error::generic(format!("Could not find parent directory for file '{}'", path).as_str())
         })?;
 
+        println!("{:?}, {:?}", file_path, watch_path);
+
         let (send, recv) = channel();
         let mut watcher = RecommendedWatcher::new(send, notify::Config::default())?;
         watcher.watch(std::path::Path::new(watch_path), RecursiveMode::NonRecursive)?;
@@ -29,11 +35,12 @@ impl FileWatcher {
         })
     }
 
-    pub fn poll_change(&mut self) -> Option<String> {
+    pub fn poll_change(&mut self) -> Option<Node> {
         match self.recv.try_recv() {
             Ok(Ok(event)) => {
                 if self.filter_notify_event(event) {
-                    Some(self.read_file())
+                    let new_contents = self.read_file();
+                    Some(Node::convert_from(&new_contents))
                 } else {
                     None
                 }
@@ -46,6 +53,13 @@ impl FileWatcher {
     pub fn read_file(&self) -> String {
         return fs::read_to_string(self.file_path.clone())
             .expect(format!("Failed to read file {}", &self.file_name).as_str());
+    }
+
+    pub fn info(&self) -> FileInfo {
+        return FileInfo {
+            file_name: self.file_name.clone(),
+            file_path: self.file_path.clone(),
+        };
     }
 
     fn path_parent_dir(path_str: &str) -> Option<(PathBuf, &Path)> {

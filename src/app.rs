@@ -2,12 +2,13 @@ use crossterm::event::{self, Event, KeyCode};
 use std::fs;
 use std::time::{Duration, Instant};
 
-use crate::file_watcher::file_watcher::FileWatcher;
+use crate::file_watcher::file_info::FileInfo;
 use crate::markdown_serialiser::*;
 
-use crate::{info_subtype::InfoSubType, log_type::LogType, node::Node, traits::EventHandler};
-
-use crate::components::Window;
+use crate::{
+    components::Window, config::KeyConfig, info_subtype::InfoSubType, log_type::LogType, node::Node,
+    traits::EventHandler,
+};
 
 #[derive(Default, PartialEq, Clone, Debug)]
 pub enum SessionState {
@@ -18,33 +19,39 @@ pub enum SessionState {
 }
 
 pub struct App {
-    file_watcher: Option<FileWatcher>,
+    pub window: Window,
+    file_info: FileInfo,
     root_node: Node,
-    window: Window,
 
     last_update_tick: Instant,
     last_save_tick: Instant,
 
     session_state: SessionState,
+
+    key_config: KeyConfig,
 }
 
 impl App {
-    pub fn new() -> Self {
-        Self {
-            file_watcher: None,
-            root_node: Node::new(),
-            window: Window::new(),
+    pub fn new(file_info: FileInfo, root_node: Node, key_config: KeyConfig) -> Self {
+        let window_title = file_info.project_dir_name();
+        let mut app = App {
+            window: Window::new(&window_title),
+            file_info,
+            root_node: root_node.clone(),
 
             last_update_tick: Instant::now(),
             last_save_tick: Instant::now(),
 
             session_state: SessionState::default(),
-        }
+            key_config: key_config,
+        };
+
+        app.window.update_tree(root_node);
+
+        return app;
     }
 
     pub fn load(&mut self) {
-        assert!(self.file_watcher.is_some());
-
         let home_dir = std::env::home_dir().unwrap().to_string_lossy().to_string();
 
         let saves = format!("{}/.project-saves", home_dir);
@@ -56,7 +63,8 @@ impl App {
             }
         }
 
-        let dir_name = self.project_dir_name();
+        // TODO: erm.
+        let dir_name = self.window.title.clone();
 
         let save_dir = format!("{}/{}", saves, dir_name);
         if !fs::exists(&save_dir).unwrap() {
@@ -79,99 +87,33 @@ impl App {
         }
     }
 
-    fn project_dir_name(&self) -> String {
-        let path = self.file_watcher.as_ref().unwrap();
-        let dir_name = path
-            .file_path
-            .parent()
-            .and_then(|p| p.file_name())
-            .and_then(|str| str.to_str())
-            .unwrap();
-
-        return dir_name.to_string();
+    pub fn update_tree(&mut self, new_root: Node) {
+        self.root_node = new_root.clone();
+        self.window.update_tree(new_root);
     }
 
-    pub fn attach_file_watcher(&mut self, file_name: &str) -> Result<(), notify::Error> {
-        let watcher = FileWatcher::new(file_name)?;
-        self.file_watcher = Some(watcher);
-
-        let initial_contents = self.file_watcher.as_ref().unwrap().read_file();
-        let markdown_tree = Node::convert_from(&initial_contents);
-        self.root_node = markdown_tree.clone();
-        self.window.update_tree(markdown_tree);
-
-        Ok(())
-    }
-
-    pub fn run(&mut self) {
-        if let None = self.file_watcher {
-            println!("File watcher has not been set.");
-            return;
+    pub fn update(&mut self) {
+        if self.last_update_tick.elapsed().as_secs() >= 1 {
+            self.window.update_time();
+            self.last_update_tick = Instant::now();
         }
 
-        let mut terminal = ratatui::init();
-
-        self.window.title = self.project_dir_name();
-        self.window
-            .log("Launched project", LogType::INFO(InfoSubType::General));
-
-        loop {
-            if self.session_state == SessionState::Quitting {
-                if let Err(e) = self.save() {
-                    // TODO: print save success after terminal has quit
-                    println!("{e}");
-                }
-                break;
+        if self.last_save_tick.elapsed().as_secs() >= 60 {
+            match self.save() {
+                Ok(()) => self.window.log(
+                    &InfoSubType::Save.message(InfoSubType::Save),
+                    LogType::INFO(InfoSubType::Save),
+                ),
+                Err(e) => self.window.log(&e, LogType::ERROR),
             }
 
-            if let Some(buf) = self.file_watcher.as_mut().unwrap().poll_change() {
-                let new_content_tree = Node::convert_from(&buf);
-                self.root_node = new_content_tree.clone();
-                self.window.update_tree(new_content_tree);
-            }
-
-            if self.last_update_tick.elapsed().as_secs() >= 1 {
-                self.window.update_time();
-                self.last_update_tick = Instant::now();
-            }
-
-            if self.last_save_tick.elapsed().as_secs() >= 60 {
-                match self.save() {
-                    Ok(()) => self.window.log(
-                        &InfoSubType::Save.message(InfoSubType::Save),
-                        LogType::INFO(InfoSubType::Save),
-                    ),
-                    Err(e) => self.window.log(&e, LogType::ERROR),
-                }
-
-                self.last_save_tick = Instant::now();
-            }
-
-            self.window.update();
-
-            terminal
-                .draw(|frame| frame.render_widget(&self.window, frame.area()))
-                .expect("failed to draw frame");
-
-            if event::poll(Duration::from_millis(50)).unwrap() {
-                let event = event::read().unwrap();
-
-                let Event::Key(key_event) = event else {
-                    continue;
-                };
-
-                self.session_state = self.handle_events(key_event.code);
-            }
+            self.last_save_tick = Instant::now();
         }
-        ratatui::restore();
 
-        self.window
-            .log("Closed project", LogType::INFO(InfoSubType::General));
+        self.window.update();
     }
 
     fn save(&mut self) -> Result<(), String> {
-        assert!(self.file_watcher.is_some());
-
         self.root_node = self.window.extract_node();
 
         let home_dir = std::env::home_dir().unwrap().to_string_lossy().to_string();
@@ -183,13 +125,8 @@ impl App {
             }
         }
 
-        let path = self.file_watcher.as_ref().unwrap();
-        let dir_name = path
-            .file_path
-            .parent()
-            .and_then(|p| p.file_name())
-            .and_then(|str| str.to_str())
-            .unwrap();
+        // FIX: store result as file info member var
+        let dir_name = self.file_info.project_dir_name();
 
         let save_dir = format!("{}/{}", saves, dir_name);
         if !fs::exists(&save_dir).unwrap() {
@@ -203,8 +140,7 @@ impl App {
         let serialised = serde_json::to_string_pretty(&self.window).unwrap();
         fs::write(save_file, serialised).expect("erm");
 
-        let file_name = self.file_watcher.as_ref().unwrap().file_name.clone();
-        markdown_serialiser::export(self.root_node.clone(), file_name);
+        markdown_serialiser::export(self.root_node.clone(), self.file_info.file_name.clone());
 
         return Ok(());
     }
