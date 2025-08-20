@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter, FromRepr};
 
-use crate::{config::KeyConfig, events::*, info_subtype::InfoSubType};
+use crate::{components::Component, config::KeyConfig, events::*, info_subtype::InfoSubType};
 
 use super::Paginator;
 
@@ -356,8 +356,10 @@ impl LogView {
             Line::from(dash_line.clone()).render(separator_area, buf);
         }
     }
+}
 
-    pub async fn event(&mut self, key: KeyCode) -> anyhow::Result<EventState> {
+impl Component for LogView {
+    fn event(&mut self, key: KeyCode) -> anyhow::Result<EventState> {
         if key == self.key_config.left {
             self.prev_filter();
             return Ok(EventState::Consumed);

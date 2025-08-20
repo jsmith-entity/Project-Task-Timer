@@ -14,11 +14,11 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 use crate::{
+    components::Component,
     config::KeyConfig,
     events::*,
     info_subtype::InfoSubType,
     node::{Node, NodePath},
-    traits::ViewEventHandler,
 };
 
 use super::Paginator;
@@ -524,8 +524,10 @@ impl TaskView {
             self.nav_bar.push_breadcrumb(new_breadcrumb);
         }
     }
+}
 
-    pub async fn event(&mut self, key: KeyCode) -> anyhow::Result<EventState> {
+impl Component for TaskView {
+    fn event(&mut self, key: KeyCode) -> anyhow::Result<EventState> {
         if key == self.key_config.down {
             self.select_line(self.selected_line + 1);
             return Ok(EventState::Consumed);

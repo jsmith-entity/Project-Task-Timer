@@ -11,11 +11,9 @@ use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
 
-use crate::{
-    app::SessionState, config::KeyConfig, events::*, log_type::LogType, node::Node, traits::EventHandler,
-};
+use crate::{config::KeyConfig, events::*, log_type::LogType, node::Node};
 
-use super::{Controls, LogView, PopupType, TaskView};
+use super::{Component, Controls, LogView, PopupType, TaskView};
 
 #[derive(Serialize, Deserialize, EnumIter, Display, Clone, Copy, PartialEq)]
 enum SelectedTab {
@@ -115,9 +113,11 @@ impl Window {
     pub fn extract_node(&self) -> Node {
         return self.task_view.root_node.clone();
     }
+}
 
-    pub async fn event(&mut self, key: KeyCode) -> anyhow::Result<EventState> {
-        if self.popup.event(key).await?.is_consumed() {
+impl Component for Window {
+    fn event(&mut self, key: KeyCode) -> anyhow::Result<EventState> {
+        if self.popup.event(key)?.is_consumed() {
             return Ok(EventState::Consumed);
         }
 
@@ -136,12 +136,12 @@ impl Window {
 
         match self.selected_tab {
             SelectedTab::Tab1 => {
-                if self.task_view.event(key).await?.is_consumed() {
+                if self.task_view.event(key)?.is_consumed() {
                     return Ok(EventState::Consumed);
                 };
             }
             SelectedTab::Tab2 => {
-                if self.logger.event(key).await?.is_consumed() {
+                if self.logger.event(key)?.is_consumed() {
                     return Ok(EventState::Consumed);
                 }
             }
@@ -149,15 +149,6 @@ impl Window {
         }
 
         return Ok(EventState::NotConsumed);
-
-        // match res {
-        //     Ok((log_type, info)) => {
-        //         if log_type != InfoSubType::None {
-        //             self.log(&log_type.message(info), LogType::INFO(log_type));
-        //         }
-        //     }
-        //     Err(e) => self.log(&e, LogType::ERROR),
-        // }
     }
 }
 

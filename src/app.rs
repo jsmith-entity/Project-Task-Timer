@@ -6,8 +6,8 @@ use crate::file_watcher::file_info::FileInfo;
 use crate::markdown_serialiser::*;
 
 use crate::{
-    components::Window, config::KeyConfig, events::*, info_subtype::InfoSubType, log_type::LogType,
-    node::Node, traits::EventHandler,
+    components::Component, components::Window, config::KeyConfig, events::*, info_subtype::InfoSubType,
+    log_type::LogType, node::Node,
 };
 
 #[derive(Default, PartialEq, Clone, Debug)]
@@ -145,7 +145,7 @@ impl App {
     }
 
     pub async fn event(&mut self, key: KeyCode) -> anyhow::Result<EventState> {
-        if self.window.event(key).await?.is_consumed() {
+        if self.window.event(key)?.is_consumed() {
             return Ok(EventState::Consumed);
         }
 

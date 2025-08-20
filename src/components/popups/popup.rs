@@ -1,7 +1,7 @@
 use crossterm::event::KeyCode;
 use serde::{Deserialize, Serialize};
 
-use crate::events::*;
+use crate::{components::Component, events::*};
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Copy)]
 pub enum PopupType {
@@ -9,8 +9,8 @@ pub enum PopupType {
     ConfirmQuit,
 }
 
-impl PopupType {
-    pub async fn event(&mut self, key: KeyCode) -> anyhow::Result<EventState> {
+impl Component for PopupType {
+    fn event(&mut self, key: KeyCode) -> anyhow::Result<EventState> {
         // TODO: Popup events
         return Ok(EventState::NotConsumed);
     }
